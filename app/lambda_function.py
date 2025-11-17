@@ -8,4 +8,7 @@ def lambda_handler(event, context):
     '''
     # TODO subir el coverage de esta clase al 75% y del environment handler al 75% por lo menos
     # TODO modificar el deploy_all para que falle si el coverage es menor al 75% - excluyendo las clases __init__.py
+    # TODO hacer github action
+    # TODO - agregar logging dependiendo del environment
+    # TODO - agregar test global
     return NotionLambda().notion_lambda_function(event, context)
