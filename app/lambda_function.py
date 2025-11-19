@@ -11,4 +11,6 @@ def lambda_handler(event, context):
     # TODO hacer github action
     # TODO - agregar logging dependiendo del environment
     # TODO - agregar test global
+
+    # TODO - verificar que la historia se haya guardado correctamente
     return NotionLambda().notion_lambda_function(event, context)
