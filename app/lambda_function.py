@@ -1,16 +1,36 @@
 from .logic.function import NotionLambda
+from .common.logger.logger import get_logger
+from .common.environment.environment_handler import environment_handler
+
+logger = get_logger(__name__)
 
 
 def lambda_handler(event, context):
-    '''
+    """
     event: Dict containing the Lambda function event data
     context: Lambda runtime context
-    '''
-    # TODO subir el coverage de esta clase al 75% y del environment handler al 75% por lo menos
-    # TODO modificar el deploy_all para que falle si el coverage es menor al 75% - excluyendo las clases __init__.py
+    """
+    logger.info("Lambda handler started")
+    logger.debug(f"Event received: {event}")
+
+    # Validate environment
+    try:
+        environment_handler.validate()
+    except ValueError as e:
+        logger.error(f"Environment validation failed: {str(e)}")
+        raise e
+
     # TODO hacer github action
-    # TODO - agregar logging dependiendo del environment
     # TODO - agregar test global
 
     # TODO - verificar que la historia se haya guardado correctamente
-    return NotionLambda().notion_lambda_function(event, context)
+    # TODO - configurar github action con sonarqube cloud
+    try:
+        return NotionLambda().notion_lambda_function(event, context)
+    except Exception as e:
+        logger.error(f"Error processing request: {str(e)}")
+        return {
+            "statusCode": 500,
+            "headers": {"Content-Type": "application/json"},
+            "body": {"message": f"Error processing request: {str(e)}"},
+        }

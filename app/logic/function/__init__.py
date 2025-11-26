@@ -1,2 +1,3 @@
 from .function import NotionLambda
-__all__ = ['NotionLambda']
+
+__all__ = ["NotionLambda"]

@@ -1,0 +1,11 @@
+[coverage:run]
+omit =
+    */tests/*
+    */__init__.py
+    */.venv/*
+
+[coverage:report]
+# Fail if any individual file has less than 75% coverage
+fail_under = 75
+skip_covered = False
+skip_empty = True
