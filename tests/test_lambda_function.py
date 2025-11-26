@@ -1,0 +1,60 @@
+import unittest
+from unittest.mock import Mock, patch
+from app.lambda_function import lambda_handler
+
+
+class TestLambdaFunction(unittest.TestCase):
+
+    @patch("app.lambda_function.NotionLambda")
+    def test_lambda_handler(self, mock_notion_lambda_class):
+        # Setup
+        mock_instance = mock_notion_lambda_class.return_value
+        expected_response = {"statusCode": 200, "body": "Success"}
+        mock_instance.notion_lambda_function.return_value = expected_response
+
+        event = {}
+        context = Mock()
+
+        # Execute
+        response = lambda_handler(event, context)
+
+        # Verify
+        mock_notion_lambda_class.assert_called_once()
+        mock_instance.notion_lambda_function.assert_called_once_with(event, context)
+        self.assertEqual(response, expected_response)
+
+    @patch("app.lambda_function.environment_handler")
+    def test_lambda_handler_validation_failure(self, mock_env_handler):
+        """Test lambda_handler when environment validation fails"""
+        # Setup
+        mock_env_handler.validate.side_effect = ValueError("Missing required vars")
+        event = {}
+        context = Mock()
+
+        # Execute and verify
+        with self.assertRaises(ValueError) as cm:
+            lambda_handler(event, context)
+
+        self.assertIn("Missing required vars", str(cm.exception))
+        mock_env_handler.validate.assert_called_once()
+
+    @patch("app.lambda_function.NotionLambda")
+    def test_lambda_handler_exception_handling(self, mock_notion_lambda_class):
+        """Test lambda_handler exception handling returns 500"""
+        # Setup
+        mock_instance = mock_notion_lambda_class.return_value
+        mock_instance.notion_lambda_function.side_effect = Exception("Test error")
+
+        event = {}
+        context = Mock()
+
+        # Execute
+        response = lambda_handler(event, context)
+
+        # Verify
+        self.assertEqual(response["statusCode"], 500)
+        self.assertIn("Test error", response["body"]["message"])
+
+
+if __name__ == "__main__":
+    unittest.main()

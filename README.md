@@ -1,6 +1,7 @@
 # Notion_Lambda_Service
 
 ## Local setup
+
 - Clone the repo and use Python 3.12 (matches the Lambda runtime).
 - Create a virtual environment:
   ```bash
@@ -12,9 +13,13 @@
   cp sample.env .env
   # edit .env
   ```
-- Install dependencies:
+- Install production dependencies:
   ```bash
   pip install -r requirements.txt
+  ```
+- Install development dependencies (for testing and linting):
+  ```bash
+  pip install -r requirements-dev.txt
   ```
 - Make helper scripts executable (run once after clone):
   ```bash
@@ -22,6 +27,7 @@
   ```
 
 ## Running locally
+
 - Unit tests: `scripts/run_tests.sh` (also runs inside `deploy_all.sh`).
 - Invoke the Lambda handler locally with an optional event payload:
   ```bash
@@ -29,7 +35,20 @@
   scripts/invoke_local.sh scripts/event.json  # uses the provided JSON
   ```
 
+## Code Quality
+
+- Run linting and formatting:
+  ```bash
+  scripts/lint.sh
+  ```
+  This runs:
+  - **Black**: Auto-formats code to PEP 8 standards
+  - **Flake8**: Checks for style violations and errors
+- Configuration:
+  - `.flake8` – Flake8 rules (max line length, excluded directories, etc.)
+
 ## Deployment flow
+
 - Full deploy (build layer, publish, attach, package, deploy code, cleanup) and tests:
   ```bash
   scripts/deploy_all.sh
@@ -37,7 +56,9 @@
 - Ensure your AWS credentials/environment match what you set in `.env` (or exported vars) before running.
 
 ## Scripts reference
-- `scripts/run_tests.sh` – run the unit test suite.
+
+- `scripts/run_tests.sh` – run the unit test suite with coverage (fails if < 75%).
+- `scripts/lint.sh` – run code formatting (black) and linting (flake8).
 - `scripts/invoke_local.sh` – call `app.lambda_function.lambda_handler` locally.
 - `scripts/build_layer.sh` – build the dependency layer (Docker, Amazon Linux image).
 - `scripts/publish_layer.sh` – publish `layer.zip` as a Lambda layer.
@@ -49,7 +70,11 @@
 - `scripts/deploy_all.sh` – orchestrates tests → build/publish/attach → package → deploy → cleanup.
 
 ## Project structure
+
 - `app/lambda_function.py` – Lambda entrypoint.
+- `app/common/` – shared utilities (logging, environment handling).
 - `app/logic/` – application logic modules.
 - `scripts/` – helper scripts for build, deploy, testing, local invocation.
-- `tests/` – unit tests (`python -m unittest discover`).
+- `tests/` – unit tests (pytest).
+- `requirements.txt` – production dependencies.
+- `requirements-dev.txt` – development dependencies (pytest, black, flake8).

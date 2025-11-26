@@ -47,7 +47,22 @@ echo "  AWS_REGION    = ${AWS_REGION}"
 echo "  AWS_PROFILE   = ${AWS_PROFILE:-default}"
 echo "  REQ_FILE      = $REQ_FILE"
 
-echo "[deploy-all] Running tests..."
+# Run linting (fail only in LOCAL environment)
+# Uses ENVIRONMENT variable (LOCAL, PROD, etc.) instead of AWS Lambda detection
+ENVIRONMENT="${ENVIRONMENT:-LOCAL}"
+if [[ "${ENVIRONMENT}" == "LOCAL" ]]; then
+  echo "[deploy-all] Running linting checks (LOCAL environment)..."
+  if ! scripts/lint.sh; then
+    echo "[deploy-all] ERROR: Linting failed. Fix errors before deploying." >&2
+    exit 1
+  fi
+else
+  echo "[deploy-all] Skipping lint check (ENVIRONMENT=${ENVIRONMENT})"
+fi
+
+echo "[deploy-all] Running tests with coverage..."
+
+# Run tests using the dedicated test script
 scripts/run_tests.sh
 
 scripts/build_layer.sh "$REQ_FILE"

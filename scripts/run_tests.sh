@@ -5,7 +5,14 @@ set -euo pipefail
 # Usage:
 #   scripts/run_tests.sh
 
-echo "[tests] Running python -m unittest discover"
-python -m unittest discover -s tests -p "*.py"
+echo "[tests] Running pytest..."
+# Determine Python executable (prefer venv)
+PYTHON_CMD="python3"
+if [[ -f ".venv/bin/python" ]]; then
+    PYTHON_CMD=".venv/bin/python"
+fi
 
-echo "[tests] Passed"
+echo "[tests] Running pytest with coverage..."
+$PYTHON_CMD -m pytest --cov=app tests/ --cov-fail-under=75
+
+echo "[tests] Passed with coverage >= 75%"
