@@ -69,6 +69,38 @@
 - `scripts/cleanup_function_versions.sh` – prune old function versions (keeps newest).
 - `scripts/deploy_all.sh` – orchestrates tests → build/publish/attach → package → deploy → cleanup.
 
+## CI/CD Pipeline
+
+The project uses GitHub Actions for Continuous Integration and Deployment.
+
+### Workflows
+
+1.  **CI Develop (`.github/workflows/ci-develop.yml`)**:
+
+    - Triggers on push to `develop`.
+    - Runs linting (Black, Flake8) and tests (Pytest with coverage).
+    - Automatically creates a Pull Request to `main` if successful.
+
+2.  **PR Main (`.github/workflows/pr-main.yml`)**:
+
+    - Triggers on Pull Request to `main`.
+    - Runs SonarQube analysis (Quality Gate).
+    - **Auto-Merge**: Automatically merges the PR (Squash) if checks pass.
+
+3.  **Deploy Main (`.github/workflows/deploy-main.yml`)**:
+    - Triggers on Push to `main` (after merge).
+    - Deploys to AWS using `scripts/deploy_all.sh` (skips tests).
+
+### Configuration
+
+To enable the pipeline, configure the following **Repository Secrets** in GitHub:
+
+- `AWS_ACCESS_KEY_ID`: AWS Access Key for deployment.
+- `AWS_SECRET_ACCESS_KEY`: AWS Secret Key for deployment.
+- `SONAR_TOKEN`: Token for SonarCloud analysis.
+
+The `GITHUB_TOKEN` is automatically handled by GitHub Actions.
+
 ## Project structure
 
 - `app/lambda_function.py` – Lambda entrypoint.

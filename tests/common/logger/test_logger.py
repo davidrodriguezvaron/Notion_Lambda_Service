@@ -28,7 +28,9 @@ class TestLogger(unittest.TestCase):
 
     def test_get_logger_lambda(self):
         """Test logger configuration for Lambda environment"""
-        with patch.dict(os.environ, {"AWS_LAMBDA_FUNCTION_NAME": "my-function"}):
+        with patch.dict(
+            os.environ, {"AWS_LAMBDA_FUNCTION_NAME": "my-function", "ENVIRONMENT": ""}
+        ):
             logger = get_logger("test_lambda")
 
             self.assertEqual(logger.level, logging.INFO)

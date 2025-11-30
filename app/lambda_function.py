@@ -20,11 +20,6 @@ def lambda_handler(event, context):
         logger.error(f"Environment validation failed: {str(e)}")
         raise e
 
-    # TODO hacer github action
-    # TODO - agregar test global
-
-    # TODO - verificar que la historia se haya guardado correctamente
-    # TODO - configurar github action con sonarqube cloud
     try:
         return NotionLambda().notion_lambda_function(event, context)
     except Exception as e:

@@ -1,0 +1,36 @@
+name: Deploy Main
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-1' }}
+
+      - name: Install dependencies (for scripts)
+        run: |
+          sudo apt-get update && sudo apt-get install -y zsh
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install black flake8 pytest pytest-cov
+
+      - name: Deploy All
+        env:
+          ENVIRONMENT: PRODUCTION
+          SKIP_TESTS: true
+        run: |
+          chmod +x scripts/*.sh
+          scripts/deploy_all.sh

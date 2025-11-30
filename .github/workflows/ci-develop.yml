@@ -1,0 +1,64 @@
+name: CI Develop
+
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  quality-and-test:
+    name: Quality and Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update && sudo apt-get install -y zsh
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install black flake8 pytest pytest-cov
+
+      - name: Linting (Black & Flake8)
+        run: |
+          # Run black in check mode (fails if formatting is needed)
+          python -m black --check .
+          # Run flake8 (fails on errors)
+          python -m flake8 .
+
+      - name: Run Tests & Coverage
+        run: |
+          # Replicating scripts/run_tests.sh logic
+          chmod +x scripts/run_tests.sh
+          scripts/run_tests.sh
+
+  create-pr:
+    name: Create Pull Request
+    needs: quality-and-test
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create Pull Request
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Check if a PR already exists from develop to main
+          EXISTING_PR=$(gh pr list --base main --head develop --json url --jq '.[0].url')
+
+          if [ -z "$EXISTING_PR" ]; then
+            echo "Creating PR from develop to main..."
+            gh pr create --base main --head develop --title "Merge develop to main" --body "Automated PR created after successful CI on develop."
+          else
+            echo "PR already exists: $EXISTING_PR"
+          fi
