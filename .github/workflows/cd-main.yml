@@ -23,6 +23,7 @@ jobs:
 
       - name: Install dependencies
         run: |
+          sudo apt-get update && sudo apt-get install -y zsh
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install pytest pytest-cov
@@ -79,6 +80,7 @@ jobs:
           # We need to ensure the environment is ready for deploy_all.sh
 
           # Install python deps again as this is a fresh job
+          sudo apt-get update && sudo apt-get install -y zsh
           python -m pip install --upgrade pip
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
           pip install black flake8 pytest pytest-cov
