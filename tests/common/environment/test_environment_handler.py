@@ -9,7 +9,7 @@ class TestEnvironmentHandler(unittest.TestCase):
         # Since it's a singleton, we check the existing instance
         self.assertEqual(environment_handler.environment, "LOCAL")
 
-    @patch.dict("os.environ", {"AWS_LAMBDA_FUNCTION_NAME": "test_function"})
+    @patch.dict("os.environ", {"AWS_LAMBDA_FUNCTION_NAME": "test_function", "ENVIRONMENT": ""})
     def test_log_level_lambda_default(self):
         self.assertEqual(environment_handler.log_level, "INFO")
 

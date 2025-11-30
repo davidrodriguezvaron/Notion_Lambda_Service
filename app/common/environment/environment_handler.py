@@ -10,7 +10,16 @@ class EnvironmentHandler:
     @property
     def environment(self):
         """Returns the current environment (LOCAL, PRODUCTION, etc)."""
-        return os.getenv("ENVIRONMENT", "LOCAL")
+        # If ENVIRONMENT is explicitly set, use it
+        if os.getenv("ENVIRONMENT"):
+            return os.getenv("ENVIRONMENT")
+
+        # If running in Lambda (and ENVIRONMENT not set), default to PRODUCTION
+        if os.getenv("AWS_LAMBDA_FUNCTION_NAME"):
+            return "PRODUCTION"
+
+        # Default to LOCAL
+        return "LOCAL"
 
     @property
     def log_level(self):

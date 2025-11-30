@@ -81,10 +81,15 @@ The project uses GitHub Actions for Continuous Integration and Deployment.
     - Runs linting (Black, Flake8) and tests (Pytest with coverage).
     - Automatically creates a Pull Request to `main` if successful.
 
-2.  **CD Main (`.github/workflows/cd-main.yml`)**:
+2.  **PR Main (`.github/workflows/pr-main.yml`)**:
+
     - Triggers on Pull Request to `main`.
     - Runs SonarQube analysis (Quality Gate).
-    - Deploys to AWS using `scripts/deploy_all.sh` (skips tests to avoid redundancy).
+    - **Auto-Merge**: Automatically merges the PR (Squash) if checks pass.
+
+3.  **Deploy Main (`.github/workflows/deploy-main.yml`)**:
+    - Triggers on Push to `main` (after merge).
+    - Deploys to AWS using `scripts/deploy_all.sh` (skips tests).
 
 ### Configuration
 
