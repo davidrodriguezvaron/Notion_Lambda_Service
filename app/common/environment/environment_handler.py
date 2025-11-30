@@ -9,18 +9,13 @@ class EnvironmentHandler:
 
     @property
     def environment(self):
-        """Returns the current environment (LOCAL, PROD, etc)."""
+        """Returns the current environment (LOCAL, PRODUCTION, etc)."""
         return os.getenv("ENVIRONMENT", "LOCAL")
-
-    @property
-    def is_lambda(self):
-        """Returns True if running in AWS Lambda environment."""
-        return os.getenv("AWS_LAMBDA_FUNCTION_NAME") is not None
 
     @property
     def log_level(self):
         """Returns the configured log level based on environment."""
-        default_level = "INFO" if self.is_lambda else "DEBUG"
+        default_level = "INFO" if self.environment == "PRODUCTION" else "DEBUG"
         return os.getenv("LOG_LEVEL", default_level)
 
     def validate(self):

@@ -20,9 +20,6 @@ class NotionLambda:
         """
         logger.info(f"Processing request in {self.env_handler.environment} environment")
 
-        # TODO - Añadir recursos de tracing y monitoring dependiendo del entorno
-        # CloudWatch para prod, y en local quizás algo más simple
-
         response = {
             "statusCode": 200,
             "headers": {"Content-Type": "application/json"},

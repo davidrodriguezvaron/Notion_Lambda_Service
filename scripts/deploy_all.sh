@@ -63,7 +63,11 @@ fi
 echo "[deploy-all] Running tests with coverage..."
 
 # Run tests using the dedicated test script
-scripts/run_tests.sh
+if [[ "${SKIP_TESTS:-false}" == "true" ]]; then
+  echo "[deploy-all] Skipping tests (SKIP_TESTS=true)"
+else
+  scripts/run_tests.sh
+fi
 
 scripts/build_layer.sh "$REQ_FILE"
 

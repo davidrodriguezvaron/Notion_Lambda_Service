@@ -10,18 +10,6 @@ class TestEnvironmentHandler(unittest.TestCase):
         self.assertEqual(environment_handler.environment, "LOCAL")
 
     @patch.dict("os.environ", {"AWS_LAMBDA_FUNCTION_NAME": "test_function"})
-    def test_is_lambda_true(self):
-        self.assertTrue(environment_handler.is_lambda)
-
-    def test_is_lambda_false(self):
-        # Ensure environment is clean
-        with patch.dict("os.environ", clear=True):
-            # We need to make sure AWS_LAMBDA_FUNCTION_NAME is not present
-            if "AWS_LAMBDA_FUNCTION_NAME" in os.environ:
-                del os.environ["AWS_LAMBDA_FUNCTION_NAME"]
-            self.assertFalse(environment_handler.is_lambda)
-
-    @patch.dict("os.environ", {"AWS_LAMBDA_FUNCTION_NAME": "test_function"})
     def test_log_level_lambda_default(self):
         self.assertEqual(environment_handler.log_level, "INFO")
 
