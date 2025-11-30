@@ -27,10 +27,10 @@ jobs:
 
       - name: Linting (Black & Flake8)
         run: |
-          # Replicating scripts/lint.sh logic but inline or calling the script directly
-          # We'll call the script to ensure consistency as requested
-          chmod +x scripts/lint.sh
-          scripts/lint.sh
+          # Run black in check mode (fails if formatting is needed)
+          python -m black --check .
+          # Run flake8 (fails on errors)
+          python -m flake8 .
 
       - name: Run Tests & Coverage
         run: |
