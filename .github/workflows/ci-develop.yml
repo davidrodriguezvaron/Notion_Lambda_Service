@@ -41,6 +41,7 @@ jobs:
   create-pr:
     name: Create Pull Request
     needs: quality-and-test
+    if: success()
     runs-on: ubuntu-latest
     permissions:
       contents: write
