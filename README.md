@@ -26,6 +26,33 @@
   chmod +x scripts/*.sh
   ```
 
+## Recommended Development Workflow
+
+1.  **Develop Locally**:
+
+    - Make your changes in the `develop` branch.
+    - Run linting: `scripts/lint.sh`
+    - Run tests: `scripts/run_tests.sh`
+    - Verify functionality locally: `scripts/invoke_local.sh`
+
+2.  **Commit & Push**:
+
+    - Once local checks pass, commit and push to `develop`.
+    - `git push origin develop`
+
+3.  **Automated CI/CD**:
+
+    - GitHub Actions will run linting.
+    - If successful, it will create/update a PR to `main`.
+    - SonarQube analysis will run on the PR.
+    - If Quality Gate passes, the PR is automatically merged to `main`.
+    - Code is deployed to AWS.
+
+4.  **Sync Local**:
+    - After the merge, update your local branches to avoid conflicts.
+    - `git checkout main && git pull origin main`
+    - `git checkout develop && git merge main`
+
 ## Running locally
 
 - Unit tests: `scripts/run_tests.sh` (also runs inside `deploy_all.sh`).
