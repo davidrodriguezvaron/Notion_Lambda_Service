@@ -51,7 +51,7 @@ jobs:
 
       - name: Create Pull Request
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT }}
         run: |
           # Check if a PR already exists from develop to main
           EXISTING_PR=$(gh pr list --base main --head develop --json url --jq '.[0].url')

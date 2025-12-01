@@ -98,8 +98,7 @@ To enable the pipeline, configure the following **Repository Secrets** in GitHub
 - `AWS_ACCESS_KEY_ID`: AWS Access Key for deployment.
 - `AWS_SECRET_ACCESS_KEY`: AWS Secret Key for deployment.
 - `SONAR_TOKEN`: Token for SonarCloud analysis.
-
-The `GITHUB_TOKEN` is automatically handled by GitHub Actions.
+- `GH_PAT`: Personal Access Token with `repo` scope (required to trigger workflows from the automated PR).
 
 ## Project structure
 
