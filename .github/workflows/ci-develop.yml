@@ -32,12 +32,6 @@ jobs:
           # Run flake8 (fails on errors)
           python -m flake8 .
 
-      - name: Run Tests & Coverage
-        run: |
-          # Replicating scripts/run_tests.sh logic
-          chmod +x scripts/run_tests.sh
-          scripts/run_tests.sh
-
   create-pr:
     name: Create Pull Request
     needs: quality-and-test
@@ -65,3 +59,10 @@ jobs:
             echo "Updating existing PR..."
             gh pr edit "$EXISTING_PR" --title "Merge develop to main" --body "Automated PR updated after successful CI on develop."
           fi
+
+      - name: Trigger PR Main Workflow
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          echo "Triggering PR Main workflow..."
+          gh workflow run pr-main.yml --ref develop
