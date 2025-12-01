@@ -98,8 +98,7 @@ To enable the pipeline, configure the following **Repository Secrets** in GitHub
 - `AWS_ACCESS_KEY_ID`: AWS Access Key for deployment.
 - `AWS_SECRET_ACCESS_KEY`: AWS Secret Key for deployment.
 - `SONAR_TOKEN`: Token for SonarCloud analysis.
-
-The `GITHUB_TOKEN` is automatically handled by GitHub Actions.
+- `GH_PAT`: Personal Access Token with `repo` scope (required to trigger workflows from the automated PR).
 
 ## Project structure
 
@@ -110,3 +109,31 @@ The `GITHUB_TOKEN` is automatically handled by GitHub Actions.
 - `tests/` – unit tests (pytest).
 - `requirements.txt` – production dependencies.
 - `requirements-dev.txt` – development dependencies (pytest, black, flake8).
+
+## Notion Integration
+
+The project includes a generic `NotionClient` to interact with the Notion API.
+
+### Configuration
+
+Ensure the following environment variables are set:
+
+- `NOTION_API_KEY`: Your Notion integration token.
+- `NOTION_VERSION`: (Optional) The Notion API version (default: "2022-06-28").
+- `LOG_LEVEL`: (Optional) Logging level (DEBUG, INFO, WARNING, ERROR). Defaults to INFO in Production, DEBUG in Local.
+
+### Usage
+
+```python
+from app.common.integrations.notion import NotionClient
+
+# Initialize the client
+notion = NotionClient()
+
+# Example: Get a database
+# database_id = "your-database-id"
+# response = notion.get(f"databases/{database_id}")
+
+# Example: Query a database
+# response = notion.post(f"databases/{database_id}/query", {"filter": {...}})
+```
