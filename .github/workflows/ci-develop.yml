@@ -61,4 +61,6 @@ jobs:
             gh pr create --base main --head develop --title "Merge develop to main" --body "Automated PR created after successful CI on develop."
           else
             echo "PR already exists: $EXISTING_PR"
+            echo "Updating existing PR..."
+            gh pr edit "$EXISTING_PR" --title "Merge develop to main" --body "Automated PR updated after successful CI on develop."
           fi

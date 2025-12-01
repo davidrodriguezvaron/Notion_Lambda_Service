@@ -40,13 +40,13 @@ jobs:
           python -m coverage xml
 
       - name: SonarQube Scan
-        uses: sonarsource/sonarcloud-github-action@master
+        uses: sonarsource/sonarqube-scan-action@0303d6b62e310685c0e34d0b9cde21803688457e # v4.2.1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
       - name: SonarQube Quality Gate Check
-        uses: sonarsource/sonarcloud-github-action@master
+        uses: sonarsource/sonarqube-quality-gate-action@d304d050d930b021876bc29cf06672e90cc9a5f4 # v1.1.0
         with:
           args: >
             -Dsonar.qualitygate.wait=true
