@@ -1,7 +1,9 @@
 {
-    "python.testing.pytestArgs": [
-        "app"
-    ],
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+  "python.testing.pytestArgs": ["app"],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true,
+  "sonarlint.connectedMode.project": {
+    "connectionId": "davidrodriguezvaron",
+    "projectKey": "davidrodriguezvaron_Notion_Lambda_Service"
+  }
 }
