@@ -27,6 +27,21 @@ class EnvironmentHandler:
         default_level = "INFO" if self.environment == "PRODUCTION" else "DEBUG"
         return os.getenv("LOG_LEVEL", default_level)
 
+    @property
+    def notion_api_key(self):
+        """Returns the Notion API key."""
+        return os.getenv("NOTION_API_KEY")
+
+    @property
+    def notion_version(self):
+        """Returns the Notion API version."""
+        return os.getenv("NOTION_VERSION", "2022-06-28")
+
+    @property
+    def notion_base_url(self):
+        """Returns the Notion API base URL."""
+        return os.getenv("NOTION_BASE_URL", "https://api.notion.com/v1")
+
     def validate(self):
         """
         Validates that required environment variables are present.

@@ -71,7 +71,9 @@ update_handler_with_retry() {
       --handler "$HANDLER" \
       --no-cli-pager \
       ${PROFILE_ARGS:+${PROFILE_ARGS[@]}} \
-      ${REGION_ARGS:+${REGION_ARGS[@]}} 2>&1 >/dev/null); then
+      ${REGION_ARGS:+${REGION_ARGS[@]}} \
+      --query 'LastUpdateStatus' --output text 2>&1); then
+      echo "[deploy-code] Handler update initiated. Status: $output"
       return 0
     fi
 
@@ -96,8 +98,9 @@ update_code_with_retry() {
       --zip-file fileb://"$ZIP_NAME" \
       --no-cli-pager \
       ${PROFILE_ARGS:+${PROFILE_ARGS[@]}} \
-      ${REGION_ARGS:+${REGION_ARGS[@]}} 2>&1); then
-      echo "$output"
+      ${REGION_ARGS:+${REGION_ARGS[@]}} \
+      --query 'LastUpdateStatus' --output text 2>&1); then
+      echo "[deploy-code] Code update initiated. Status: $output"
       return 0
     fi
 
