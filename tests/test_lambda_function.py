@@ -5,8 +5,9 @@ from app.lambda_function import lambda_handler
 
 class TestLambdaFunction(unittest.TestCase):
 
+    @patch("app.lambda_function.notion_client")
     @patch("app.lambda_function.NotionLambda")
-    def test_lambda_handler(self, mock_notion_lambda_class):
+    def test_lambda_handler(self, mock_notion_lambda_class, mock_notion_client):
         # Setup
         mock_instance = mock_notion_lambda_class.return_value
         expected_response = {"statusCode": 200, "body": "Success"}
@@ -19,7 +20,7 @@ class TestLambdaFunction(unittest.TestCase):
         response = lambda_handler(event, context)
 
         # Verify
-        mock_notion_lambda_class.assert_called_once()
+        mock_notion_lambda_class.assert_called_once_with(mock_notion_client)
         mock_instance.notion_lambda_function.assert_called_once_with(event, context)
         self.assertEqual(response, expected_response)
 
@@ -38,8 +39,11 @@ class TestLambdaFunction(unittest.TestCase):
         self.assertIn("Missing required vars", str(cm.exception))
         mock_env_handler.validate.assert_called_once()
 
+    @patch("app.lambda_function.notion_client")
     @patch("app.lambda_function.NotionLambda")
-    def test_lambda_handler_exception_handling(self, mock_notion_lambda_class):
+    def test_lambda_handler_exception_handling(
+        self, mock_notion_lambda_class, mock_notion_client
+    ):
         """Test lambda_handler exception handling returns 500"""
         # Setup
         mock_instance = mock_notion_lambda_class.return_value

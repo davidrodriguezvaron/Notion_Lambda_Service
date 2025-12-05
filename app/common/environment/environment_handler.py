@@ -42,6 +42,16 @@ class EnvironmentHandler:
         """Returns the Notion API base URL."""
         return os.getenv("NOTION_BASE_URL", "https://api.notion.com/v1")
 
+    @property
+    def notion_database_id(self):
+        """Returns the Notion database ID."""
+        return os.getenv("NOTION_DATABASE_ID")
+
+    @property
+    def notion_database_filter_properties(self):
+        """Returns the Notion database filter properties."""
+        return os.getenv("NOTION_DATABASE_FILTER_PROPERTIES", "Fecha,Titulo,Notas")
+
     def validate(self):
         """
         Validates that required environment variables are present.
