@@ -8,7 +8,7 @@ command -v aws >/dev/null 2>&1 || { echo "[cleanup-function] AWS CLI is required
 
 FUNCTION_NAME=${1:-${FUNCTION_NAME:-Notion_Lambda_Service}}
 AWS_REGION=${AWS_REGION:-us-east-1}
-AWS_PROFILE=${AWS_PROFILE:-lambda}
+AWS_PROFILE=${AWS_PROFILE:-}
 RETAIN=${RETAIN:-1}
 
 PROFILE_ARGS=()
