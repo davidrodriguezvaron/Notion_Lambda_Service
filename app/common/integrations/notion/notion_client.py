@@ -124,4 +124,21 @@ class NotionClient:
         return self._make_request("DELETE", endpoint)
 
 
-notion_client = NotionClient()
+# Lazy singleton - only created when first accessed
+_notion_client_instance = None
+
+
+def get_notion_client() -> NotionClient:
+    """
+    Get the singleton NotionClient instance.
+
+    Uses lazy initialization to avoid creating the client
+    at module import time, which would fail without environment variables.
+
+    Returns:
+        NotionClient: The singleton client instance.
+    """
+    global _notion_client_instance
+    if _notion_client_instance is None:
+        _notion_client_instance = NotionClient()
+    return _notion_client_instance
