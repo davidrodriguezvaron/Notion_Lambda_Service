@@ -22,7 +22,7 @@ def lambda_handler(event, context):
         raise e
 
     try:
-        return NotionLambda(get_notion_client()).notion_lambda_function(event, context)
+        return NotionLambda(get_notion_client()).notion_lambda_function()
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
         raise e
