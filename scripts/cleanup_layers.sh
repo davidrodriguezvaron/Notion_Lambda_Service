@@ -6,7 +6,7 @@ set -euo pipefail
 
 LAYER_NAME=${1:-${LAYER_NAME:-Notion_Lambda_Service_Deps}}
 AWS_REGION=${AWS_REGION:-us-east-1}
-AWS_PROFILE=${AWS_PROFILE:-lambda}
+AWS_PROFILE=${AWS_PROFILE:-}
 RETAIN=${RETAIN:-1}
 
 PROFILE_ARGS=()
