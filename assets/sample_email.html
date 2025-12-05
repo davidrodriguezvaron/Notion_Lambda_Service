@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Modern Task Digest</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #F3F4F6;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .wrapper {
+            width: 100%;
+            table-layout: fixed;
+            background-color: #F3F4F6;
+            padding-bottom: 40px;
+        }
+
+        .main-content {
+            background-color: #ffffff;
+            margin: 0 auto;
+            max-width: 600px;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+
+        .header {
+            background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
+            padding: 30px 40px;
+            text-align: left;
+        }
+
+        .header h1 {
+            color: #ffffff;
+            margin: 0;
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+        }
+
+        .header p {
+            color: #E0E7FF;
+            margin: 5px 0 0 0;
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .task-list {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .task-row td {
+            padding: 18px 30px;
+            border-bottom: 1px solid #F3F4F6;
+            vertical-align: top;
+        }
+
+        .task-row:last-child td {
+            border-bottom: none;
+        }
+
+        .date-cell {
+            width: 100px;
+            padding-right: 10px !important;
+        }
+
+        .date-pill {
+            display: inline-block;
+            background-color: #EEF2FF;
+            color: #4F46E5;
+            font-size: 11px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .task-title {
+            font-size: 15px;
+            color: #1F2937;
+            font-weight: 600;
+            line-height: 1.4;
+            display: block;
+            margin-bottom: 4px;
+        }
+
+        .task-notes {
+            font-size: 13px;
+            color: #6B7280;
+            background-color: #F9FAFB;
+            padding: 8px 12px;
+            border-radius: 6px;
+            border-left: 3px solid #D1D5DB;
+            display: block;
+            margin-top: 8px;
+            word-break: break-all;
+        }
+
+        .link-text {
+            color: #4F46E5;
+            text-decoration: none;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 30px;
+            color: #9CA3AF;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="wrapper">
+        <div style="height: 40px;"></div>
+        <div class="main-content">
+            <div class="header">
+                <h1>Task Digest</h1>
+                <p>You have <strong>22 pending items</strong> in your queue.</p>
+            </div>
+
+            <table class="task-list">
+                <thead>
+                    <tr>
+                        <th scope="col" style="display: none;">Date</th>
+                        <th scope="col" style="display: none;">Task</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="task-row">
+                        <td class="date-cell">
+                            <span class="date-pill">Nov 24</span>
+                        </td>
+                        <td>
+                            <span class="task-title">Work on goals review</span>
+                            <div class="task-notes">Reach out to my Manager</div>
+                        </td>
+                    </tr>
+                    <tr class="task-row">
+                        <td class="date-cell">
+                            <span class="date-pill">Dec 01</span>
+                        </td>
+                        <td>
+                            <span class="task-title">Review Salesforce Latest Updates</span>
+                            <div class="task-notes">
+                                <a href="#" class="link-text">www.salesforce.com</a>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr class="task-row">
+                        <td class="date-cell">
+                            <span class="date-pill">Dec 05</span>
+                        </td>
+                        <td>
+                            <span class="task-title">Pay rent</span>
+                        </td>
+                    </tr>
+
+                </tbody>
+            </table>
+        </div>
+
+        <div class="footer">
+            Generated via AWS Lambda • 2025 Personal Automation
+        </div>
+    </div>
+
+</body>
+
+</html>

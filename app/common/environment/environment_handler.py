@@ -52,12 +52,26 @@ class EnvironmentHandler:
         """Returns the Notion database filter properties."""
         return os.getenv("NOTION_DATABASE_FILTER_PROPERTIES", "Notas,Tarea,Fecha")
 
+    @property
+    def ses_sender_and_receiver(self):
+        """Returns the sender and receiver email addresses."""
+        sender = os.getenv("SES_SENDER_EMAIL")
+        receiver = os.getenv("SES_RECEIVER_EMAIL")
+        return (sender.strip() if sender else None), (
+            receiver.strip() if receiver else None
+        )
+
+    @property
+    def region(self):
+        """Returns the AWS region."""
+        return os.getenv("AWS_REGION", "us-east-1")
+
     def validate(self):
         """
         Validates that required environment variables are present.
         Raises ValueError if any required variable is missing.
         """
-        required_vars = []
+        required_vars = ["SES_SENDER_EMAIL", "SES_RECEIVER_EMAIL"]
         missing_vars = [var for var in required_vars if not os.getenv(var)]
 
         if missing_vars:

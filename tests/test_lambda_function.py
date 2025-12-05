@@ -24,7 +24,7 @@ class TestLambdaFunction(unittest.TestCase):
         # Verify
         mock_get_notion_client.assert_called_once()
         mock_notion_lambda_class.assert_called_once_with(mock_client)
-        mock_instance.notion_lambda_function.assert_called_once_with(event, context)
+        mock_instance.notion_lambda_function.assert_called_once_with()
         self.assertEqual(response, expected_response)
 
     @patch("app.lambda_function.environment_handler")

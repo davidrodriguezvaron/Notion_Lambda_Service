@@ -1,5 +1,4 @@
 import unittest
-import os
 from unittest.mock import patch
 from app.common.environment.environment_handler import environment_handler
 
@@ -24,9 +23,15 @@ class TestEnvironmentHandler(unittest.TestCase):
     def test_log_level_custom(self):
         self.assertEqual(environment_handler.log_level, "WARNING")
 
-    def test_validate_with_no_required_vars(self):
-        """Test validate() passes when no variables are required"""
-        # Should not raise any exception
+    @patch.dict(
+        "os.environ",
+        {
+            "SES_SENDER_EMAIL": "sender@example.com",
+            "SES_RECEIVER_EMAIL": "receiver@example.com",
+        },
+    )
+    def test_validate_success(self):
+        """Test validate() passes when required variables are present"""
         try:
             environment_handler.validate()
         except ValueError:
@@ -34,30 +39,28 @@ class TestEnvironmentHandler(unittest.TestCase):
 
     def test_validate_with_missing_vars(self):
         """Test validate() raises ValueError when required vars are missing"""
-        # Create a new instance and patch os.getenv to simulate missing vars
-        from app.common.environment.environment_handler import EnvironmentHandler
+        # Ensure specific vars are missing
+        with patch.dict("os.environ", clear=True):
+            # We need to re-instantiate or just call validate on the existing one,
+            # but os.getenv will look at the patched environ.
+            with self.assertRaises(ValueError) as cm:
+                environment_handler.validate()
 
-        handler = EnvironmentHandler()
+            self.assertIn("Missing required environment variables", str(cm.exception))
+            self.assertIn("SES_SENDER_EMAIL", str(cm.exception))
 
-        # Monkey-patch the validate method to test with required vars
-        import types
-
-        def validate_with_required(self):
-            required_vars = ["MISSING_TEST_VAR_X"]
-            missing_vars = [var for var in required_vars if not os.getenv(var)]
-            if missing_vars:
-                raise ValueError(
-                    f"Missing required environment variables: {', '.join(missing_vars)}"
-                )
-
-        # Bind the new method to the instance
-        handler.validate = types.MethodType(validate_with_required, handler)
-
-        # Test that it raises
-        with self.assertRaises(ValueError) as cm:
-            handler.validate()
-
-        self.assertIn("Missing required environment variables", str(cm.exception))
+    @patch.dict(
+        "os.environ",
+        {
+            "SES_SENDER_EMAIL": "sender@example.com",
+            "SES_RECEIVER_EMAIL": "receiver@example.com",
+        },
+    )
+    def test_ses_sender_and_receiver(self):
+        self.assertEqual(
+            environment_handler.ses_sender_and_receiver,
+            ("sender@example.com", "receiver@example.com"),
+        )
 
 
 if __name__ == "__main__":

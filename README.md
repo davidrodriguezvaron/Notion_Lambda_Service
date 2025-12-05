@@ -165,3 +165,31 @@ notion = NotionClient()
 # Example: Query a database
 # response = notion.post(f"databases/{database_id}/query", {"filter": {...}})
 ```
+
+## Gmail Auto Link
+
+If you're using Gmail, you can use a Google Apps Script to automatically delete notification emails after a few days to keep your inbox clean.
+
+1.  Go to [Google Apps Script](https://script.google.com/).
+2.  Create a new project.
+3.  Paste the code from `scripts/helpers/gmail_auto_delete.js`.
+4.  Set up a time-driven trigger to run the `autoDeleteNotionEmails` function daily.
+
+The script searches for emails with "Task List" in the subject that are older than 2 days and moves them to trash.
+
+![Sample Email](assets/sample_email.png)
+
+## Sample Email
+
+You can find the HTML template used for emails in `assets/sample_email.html`.
+
+## Project structure
+
+- `app/lambda_function.py` – Lambda entrypoint.
+- `app/common/` – shared utilities (logging, environment handling).
+- `app/logic/` – application logic modules.
+- `scripts/` – helper scripts for build, deploy, testing, local invocation.
+  - `scripts/helpers/` – utility scripts (e.g., Gmail auto-delete).
+- `tests/` – unit tests (pytest).
+- `requirements.txt` – production dependencies.
+- `requirements-dev.txt` – development dependencies (pytest, black, flake8).
