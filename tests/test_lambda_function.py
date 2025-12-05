@@ -19,7 +19,14 @@ class TestLambdaFunction(unittest.TestCase):
         context = Mock()
 
         # Execute
-        response = lambda_handler(event, context)
+        with patch.dict(
+            "os.environ",
+            {
+                "SES_SENDER_EMAIL": "sender@example.com",
+                "SES_RECEIVER_EMAIL": "receiver@example.com",
+            },
+        ):
+            response = lambda_handler(event, context)
 
         # Verify
         mock_get_notion_client.assert_called_once()
@@ -58,8 +65,15 @@ class TestLambdaFunction(unittest.TestCase):
         context = Mock()
 
         # Execute and verify exception is re-raised
-        with self.assertRaises(Exception) as cm:
-            lambda_handler(event, context)
+        with patch.dict(
+            "os.environ",
+            {
+                "SES_SENDER_EMAIL": "sender@example.com",
+                "SES_RECEIVER_EMAIL": "receiver@example.com",
+            },
+        ):
+            with self.assertRaises(Exception) as cm:
+                lambda_handler(event, context)
 
         self.assertIn("Test error", str(cm.exception))
 
