@@ -2,6 +2,7 @@ import unittest
 import requests
 from unittest.mock import patch, MagicMock, PropertyMock
 from app.common.integrations.notion.notion_client import NotionClient
+from app.common.integrations.notion.exceptions import NotionApiError
 
 
 class TestNotionClient(unittest.TestCase):
@@ -124,12 +125,28 @@ class TestNotionClient(unittest.TestCase):
     def test_make_request_failure(self, mock_request):
         # Simulate an HTTP error
         mock_response = MagicMock()
+        mock_response.status_code = 400
+        mock_response.text = "Other Error"
         error = requests.exceptions.HTTPError("404 Client Error")
         error.response = mock_response
         mock_response.raise_for_status.side_effect = error
-        mock_response.text = "Not Found"
         mock_request.return_value = mock_response
 
-        # Verify that the exception is re-raised
-        with self.assertRaises(requests.exceptions.HTTPError):
+        # Verify that NotionApiError is raised with correct status code
+        with self.assertRaises(NotionApiError) as context:
             self.client._make_request("GET", "invalid_endpoint")
+
+        self.assertEqual(context.exception.status_code, 400)
+        self.assertIn("Other Error", str(context.exception))
+
+    @patch("requests.request")
+    def test_make_request_connection_error(self, mock_request):
+        # Simulate a connection error
+        mock_request.side_effect = requests.exceptions.ConnectionError(
+            "Connection refused"
+        )
+
+        with self.assertRaises(NotionApiError) as context:
+            self.client._make_request("GET", "any_endpoint")
+
+        self.assertIn("connection error", str(context.exception).lower())

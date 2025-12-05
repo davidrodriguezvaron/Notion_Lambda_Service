@@ -59,10 +59,5 @@ jobs:
             echo "Updating existing PR..."
             gh pr edit "$EXISTING_PR" --title "Merge develop to main" --body "Automated PR updated after successful CI on develop."
           fi
-
-      - name: Trigger PR Main Workflow
-        env:
-          GH_TOKEN: ${{ secrets.GH_PAT }}
-        run: |
-          echo "Triggering PR Main workflow..."
-          gh workflow run pr-main.yml --ref develop
+          # Note: pr-main.yml will be triggered automatically by GitHub when PR is created/reopened
+          # No need to manually trigger it with gh workflow run

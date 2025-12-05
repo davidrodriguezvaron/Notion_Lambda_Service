@@ -1,4 +1,5 @@
 from .logic.function import NotionLambda
+from .common.integrations.notion.notion_client import get_notion_client
 from .common.logger.logger import get_logger
 from .common.environment.environment_handler import environment_handler
 
@@ -21,7 +22,7 @@ def lambda_handler(event, context):
         raise e
 
     try:
-        return NotionLambda().notion_lambda_function(event, context)
+        return NotionLambda(get_notion_client()).notion_lambda_function(event, context)
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
         return {

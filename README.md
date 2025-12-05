@@ -13,6 +13,7 @@
   cp sample.env .env
   # edit .env
   ```
+  **Note**: `LOG_LEVEL` can be configured globally (DEBUG, INFO, WARNING, ERROR). Defaults to INFO in Production, DEBUG in Local.
 - Install production dependencies:
   ```bash
   pip install -r requirements.txt
@@ -147,7 +148,7 @@ Ensure the following environment variables are set:
 
 - `NOTION_API_KEY`: Your Notion integration token.
 - `NOTION_VERSION`: (Optional) The Notion API version (default: "2022-06-28").
-- `LOG_LEVEL`: (Optional) Logging level (DEBUG, INFO, WARNING, ERROR). Defaults to INFO in Production, DEBUG in Local.
+- `NOTION_VERSION`: (Optional) The Notion API version (default: "2022-06-28").
 
 ### Usage
 

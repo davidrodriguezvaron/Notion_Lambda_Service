@@ -9,15 +9,22 @@ class TestNotionLambda(unittest.TestCase):
     def setUp(self, mock_env_handler):
         """Set up test fixtures"""
         self.mock_env_handler = mock_env_handler
-        self.notion_lambda = NotionLambda()
+        self.mock_notion_client = Mock()
+        # Configure the mock to return a proper response structure
+        self.mock_notion_client.post.return_value = {
+            "results": [{"id": "1", "properties": {}}]
+        }
+        self.notion_lambda = NotionLambda(self.mock_notion_client)
 
     @patch("app.logic.function.function.environment_handler")
     def test_init_uses_environment_handler(self, mock_env_handler_instance):
         """Test that __init__ uses the singleton EnvironmentHandler"""
         # We need to ensure that the NotionLambda class uses the mocked instance
         # The patch above replaces the 'environment_handler' imported in 'app.logic.function.function'
-        notion_lambda = NotionLambda()
+        mock_client = Mock()
+        notion_lambda = NotionLambda(mock_client)
         self.assertEqual(notion_lambda.env_handler, mock_env_handler_instance)
+        self.assertEqual(notion_lambda.notion_client, mock_client)
 
     def test_notion_lambda_function_returns_success_response(self):
         """Test that notion_lambda_function returns a successful response"""

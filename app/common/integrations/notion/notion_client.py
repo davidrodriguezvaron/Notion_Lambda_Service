@@ -2,6 +2,7 @@ import requests
 from typing import Optional, Dict, Any
 from app.common.logger.logger import get_logger
 from app.common.environment.environment_handler import environment_handler
+from app.common.integrations.notion.exceptions import NotionApiError
 
 
 class NotionClient:
@@ -52,7 +53,7 @@ class NotionClient:
             Dict[str, Any]: The JSON response from the API.
 
         Raises:
-            requests.exceptions.HTTPError: If the request fails.
+            NotionApiError: If the request fails.
         """
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
 
@@ -61,11 +62,16 @@ class NotionClient:
             response = requests.request(method, url, headers=self.headers, json=payload)
             response.raise_for_status()
             return response.json()
+        except requests.exceptions.HTTPError as e:
+            self.logger.error(f"Notion API request failed: {str(e)}")
+            status_code = e.response.status_code if e.response is not None else None
+            error_message = e.response.text if e.response is not None else str(e)
+            raise NotionApiError(
+                f"Notion API request failed: {error_message}", status_code=status_code
+            )
         except requests.exceptions.RequestException as e:
             self.logger.error(f"Notion API request failed: {str(e)}")
-            if hasattr(e, "response") and e.response is not None:
-                self.logger.error(f"Response content: {e.response.text}")
-            raise
+            raise NotionApiError(f"Notion API connection error: {str(e)}")
 
     def get(self, endpoint: str) -> Dict[str, Any]:
         """
@@ -116,3 +122,23 @@ class NotionClient:
             Dict[str, Any]: The JSON response.
         """
         return self._make_request("DELETE", endpoint)
+
+
+# Lazy singleton - only created when first accessed
+_notion_client_instance = None
+
+
+def get_notion_client() -> NotionClient:
+    """
+    Get the singleton NotionClient instance.
+
+    Uses lazy initialization to avoid creating the client
+    at module import time, which would fail without environment variables.
+
+    Returns:
+        NotionClient: The singleton client instance.
+    """
+    global _notion_client_instance
+    if _notion_client_instance is None:
+        _notion_client_instance = NotionClient()
+    return _notion_client_instance
