@@ -47,7 +47,7 @@ class TestLambdaFunction(unittest.TestCase):
     def test_lambda_handler_exception_handling(
         self, mock_notion_lambda_class, mock_get_notion_client
     ):
-        """Test lambda_handler exception handling returns 500"""
+        """Test lambda_handler re-raises exceptions to mark Lambda as failed"""
         # Setup
         mock_client = Mock()
         mock_get_notion_client.return_value = mock_client
@@ -57,12 +57,11 @@ class TestLambdaFunction(unittest.TestCase):
         event = {}
         context = Mock()
 
-        # Execute
-        response = lambda_handler(event, context)
+        # Execute and verify exception is re-raised
+        with self.assertRaises(Exception) as cm:
+            lambda_handler(event, context)
 
-        # Verify
-        self.assertEqual(response["statusCode"], 500)
-        self.assertIn("Test error", response["body"]["message"])
+        self.assertIn("Test error", str(cm.exception))
 
 
 if __name__ == "__main__":

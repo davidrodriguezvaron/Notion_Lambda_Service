@@ -50,7 +50,7 @@ class EnvironmentHandler:
     @property
     def notion_database_filter_properties(self):
         """Returns the Notion database filter properties."""
-        return os.getenv("NOTION_DATABASE_FILTER_PROPERTIES", "Fecha,Titulo,Notas")
+        return os.getenv("NOTION_DATABASE_FILTER_PROPERTIES", "Notas,Tarea,Fecha")
 
     def validate(self):
         """

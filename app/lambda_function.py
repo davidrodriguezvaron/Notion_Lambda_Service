@@ -25,8 +25,4 @@ def lambda_handler(event, context):
         return NotionLambda(get_notion_client()).notion_lambda_function(event, context)
     except Exception as e:
         logger.error(f"Error processing request: {str(e)}")
-        return {
-            "statusCode": 500,
-            "headers": {"Content-Type": "application/json"},
-            "body": {"message": f"Error processing request: {str(e)}"},
-        }
+        raise e
