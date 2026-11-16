@@ -73,7 +73,7 @@ class TestNotionLambda(unittest.TestCase):
         self.assertEqual(kwargs["subject"], "Tareas: 1 hoy")
         self.assertEqual(kwargs["sender"], "sender@example.com")
         self.assertEqual(kwargs["receiver"], ["receiver@example.com"])
-        self.assertIn("Lunes, 16 de noviembre", kwargs["body"])
+        self.assertIn(">lunes</div>", kwargs["body"])
         self.assertIn("HOY (1)", kwargs["text_body"])
 
         pending_payload = self.client.post.call_args_list[-1][0][1]
@@ -109,7 +109,7 @@ class TestNotionLambda(unittest.TestCase):
 
         self.assertEqual(response["body"]["rescheduled"], 1)
         body = self.ses.send_email.call_args.kwargs["body"]
-        self.assertIn("Reprogramadas hoy (1)", body)
+        self.assertIn("Nota del día", body)
         self.assertIn("Pagar Vanti", body)
 
     def test_reschedules_are_reported_even_with_nothing_pending(self):

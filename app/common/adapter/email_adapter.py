@@ -1,9 +1,11 @@
 """
 Builds the daily task digest (subject, HTML and plain text) in Spanish.
 
-The HTML is email safe: table layout, inline styles, 600 px max width, no
-gradients or shadows. A small <style> block only adds dark mode and mobile
-tweaks; clients that drop it still get a complete, readable email.
+The HTML uses a "paper" look: a printed daily edition with serif type, warm
+cream paper, ink colored text and a sienna accent. It is email safe: table
+layout, inline styles, 600 px max width, no gradients or shadows. A small
+<style> block only adds dark mode ("papel de noche") and mobile tweaks;
+clients that drop it still get a complete, readable email.
 """
 
 import html
@@ -15,6 +17,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence
 from zoneinfo import ZoneInfo
 
 from app.common.utils.dates import (
+    DAYS,
+    MONTHS,
     TaskDate,
     format_day_month,
     format_long_date,
@@ -23,61 +27,46 @@ from app.common.utils.dates import (
     relative_label,
 )
 
-# Area -> (light background, light text, dark background, dark text)
+# --------------------------------------------------------------------- palette
+
+PAGE = "#efe7da"  # around the sheet
+PAPER = "#fbf7f0"
+INK = "#3b2f2a"  # titles
+BODY = "#4a3d36"  # running text
+MUTED = "#8a7b6e"
+RULE = "#e3d8c6"
+DOT = "#d6c9b5"
+ACCENT = "#a0522d"  # sienna
+RED = "#b42318"
+NOTE_BG = "#f3ebdd"
+NOTE_RED_BG = "#fbe9e4"
+
+SERIF = "Georgia,'Times New Roman',serif"
+SANS = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
+
+# Area -> (ink color on paper, ink color on dark paper). Printed, muted tones.
 AREA_STYLES: Dict[str, tuple] = {
-    "Hogar": ("#fef3c7", "#92400e", "#3b2f12", "#fcd34d"),
-    "Gatos": ("#fce7f3", "#9d174d", "#3d1a2c", "#f9a8d4"),
-    "Carro": ("#e0e7ff", "#3730a3", "#23264a", "#a5b4fc"),
-    "Finanzas": ("#dcfce7", "#166534", "#15301f", "#86efac"),
-    "Trabajo": ("#e0f2fe", "#075985", "#132b3a", "#7dd3fc"),
-    "Salud": ("#fee2e2", "#991b1b", "#3b1a1a", "#fca5a5"),
-    "Personal": ("#ccfbf1", "#115e59", "#123330", "#5eead4"),
-    "Estudio": ("#ffedd5", "#9a3412", "#3b2414", "#fdba74"),
+    "Hogar": ("#9a6b1f", "#e2b46a"),
+    "Gatos": ("#a3466e", "#e79abb"),
+    "Carro": ("#4a5a8a", "#a3b2e0"),
+    "Finanzas": ("#3f7a4f", "#8fcf9f"),
+    "Trabajo": ("#2f6f86", "#86c6dc"),
+    "Salud": ("#a33a3a", "#ec9a9a"),
+    "Personal": ("#6b5d52", "#c4b4a5"),
+    "Estudio": ("#b0602a", "#eba476"),
 }
-DEFAULT_AREA_STYLE = ("#f3f4f6", "#374151", "#2a2f35", "#d1d5db")
+DEFAULT_AREA_STYLE = (MUTED, "#a89a8b")
 
-# Color tones: (accent, soft background, text on soft background).
-# Each tone has matching dark mode classes in email_template.html.
-TONES = {
-    "red": ("#ef4444", "#fef2f2", "#b91c1c"),
-    "blue": ("#3b82f6", "#eff6ff", "#1d4ed8"),
-    "slate": ("#cbd5e1", "#f1f5f9", "#475569"),
-    "green": ("#22c55e", "#f0fdf4", "#15803d"),
-}
-
-# Section key -> (title, tone)
+# Section key -> (title used in the plain text, printed heading, color, class)
 SECTION_STYLES = {
-    "overdue": ("Vencidas", "red"),
-    "today": ("Hoy", "blue"),
-    "upcoming": ("Próximos días", "slate"),
+    "overdue": ("Vencidas", "Pendientes de días anteriores", RED, "red"),
+    "today": ("Hoy", "Para hoy", ACCENT, "accent"),
+    "upcoming": ("Próximos días", "Lo que viene", MUTED, "muted"),
 }
-
-# Small icons: emoji render in Gmail, Apple Mail and Outlook without CSS.
-AREA_EMOJI = {
-    "Hogar": "🏠",
-    "Gatos": "🐱",
-    "Carro": "🚗",
-    "Finanzas": "💰",
-    "Trabajo": "💼",
-    "Salud": "🩺",
-    "Personal": "✨",
-    "Estudio": "📚",
-}
-SECTION_EMOJI = {"overdue": "⏰", "today": "📌", "upcoming": "🗓️"}
-
-# Up to this many upcoming days get their own cell in the header agenda;
-# a longer window is shown as a single "Próximas" cell.
-MAX_STRIP_DAYS = 4
-
-INK = "#1e293b"
-MUTED = "#64748b"
-FAINT = "#94a3b8"
-LINE = "#edf0f4"
+ROMAN = ["I", "II", "III"]
 
 URL_PATTERN = re.compile(r"(https?://[^\s<>\"']+|www\.[^\s<>\"']+)")
 TRAILING_PUNCTUATION = ".,;:!?)]}"
-
-FONT = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif"
 
 
 @dataclass
@@ -121,6 +110,26 @@ def _plural(count: int, singular: str, plural: str) -> str:
 
 def _attr(value: str) -> str:
     return html.escape(value or "", quote=True)
+
+
+def _join_es(parts: List[str]) -> str:
+    """["a", "b", "c"] -> "a, b y c"."""
+    if len(parts) <= 1:
+        return "".join(parts)
+    return ", ".join(parts[:-1]) + " y " + parts[-1]
+
+
+def _row(content: str, padding: str) -> str:
+    return f'<tr><td class="px" style="padding:{padding};">{content}</td></tr>'
+
+
+def _label(text: str, color: str, css_class: str, extra: str = "") -> str:
+    """Small uppercase sans label, the "newspaper" section style."""
+    return (
+        f'<div class="{css_class}" style="font-family:{SANS};font-size:11px;'
+        f"line-height:16px;letter-spacing:0.2em;text-transform:uppercase;"
+        f'color:{color};{extra}">{text}</div>'
+    )
 
 
 class EmailAdapter:
@@ -186,97 +195,6 @@ class EmailAdapter:
     def subject(self, sections: Sections) -> str:
         return f"Tareas: {self.summary(sections)}"
 
-    # ------------------------------------------------------------- public API
-
-    def build_digest(
-        self,
-        tasks: Iterable[Dict[str, Any]],
-        today: date,
-        upcoming_days: int = 3,
-        rescheduled: Sequence[Any] = (),
-        warnings: Sequence[str] = (),
-    ) -> EmailContent:
-        """Builds subject, HTML and plain text for the digest."""
-        sections = self.group_tasks(tasks, today, upcoming_days)
-        subject = self.subject(sections)
-        html_body = self._render_html(
-            sections, today, rescheduled, warnings, upcoming_days
-        )
-        text_body = self._render_text(sections, today, rescheduled, warnings)
-        return EmailContent(subject, html_body, text_body, sections)
-
-    # ------------------------------------------------------------------- HTML
-
-    def _load_template(self) -> str:
-        if self._template is None:
-            with open(self.TEMPLATE_PATH, "r", encoding="utf-8") as f:
-                self._template = f.read()
-        return self._template
-
-    def _render_html(
-        self, sections, today, rescheduled, warnings, upcoming_days=3
-    ) -> str:
-        if sections.total:
-            body = "".join(
-                self._section_html(key, items, today)
-                for key, items in sections.items()
-                if items
-            )
-            preheader = self.summary(sections).capitalize()
-        else:
-            body = self._empty_html()
-            preheader = "Nada pendiente hoy. Disfruta el día."
-        body += self._rescheduled_html(rescheduled) + self._warnings_html(warnings)
-
-        replacements = {
-            "{{subject}}": html.escape(self.subject(sections)),
-            "{{preheader}}": html.escape(preheader),
-            "{{header}}": self._header_html(sections, today, upcoming_days),
-            "{{counters}}": "",
-            "{{sections}}": body,
-            "{{footer}}": self._footer_html(),
-            "{{dark_area_css}}": self._dark_area_css(),
-        }
-        result = self._load_template()
-        for key, value in replacements.items():
-            result = result.replace(key, value)
-        return result
-
-    @staticmethod
-    def _dark_area_css() -> str:
-        rules = []
-        for name, (_, _, dark_bg, dark_fg) in AREA_STYLES.items():
-            css_class = EmailAdapter._area_class(name)
-            rules.append(
-                f"    .{css_class} {{ background-color: {dark_bg} !important; "
-                f"color: {dark_fg} !important; }}"
-            )
-        return "\n".join(rules)
-
-    @staticmethod
-    def _area_class(area: str) -> str:
-        ascii_name = (
-            area.lower()
-            .replace("á", "a")
-            .replace("é", "e")
-            .replace("í", "i")
-            .replace("ó", "o")
-            .replace("ú", "u")
-        )
-        return "tag-" + re.sub(r"[^a-z0-9]+", "-", ascii_name).strip("-")
-
-    @staticmethod
-    def _pill(text: str, tone: str) -> str:
-        _, soft, fg = TONES[tone]
-        return (
-            f'<span class="soft-{tone} fg-{tone}" style="display:inline-block;'
-            f"background-color:{soft};color:{fg};font-size:12px;line-height:18px;"
-            f'font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap;">'
-            f"{html.escape(text)}</span>"
-        )
-
-    # ----------------------------------------------------------------- header
-
     @staticmethod
     def greeting_line(sections: Sections) -> str:
         """One friendly sentence that sums up the day."""
@@ -295,205 +213,260 @@ class EmailAdapter:
             )
         if sections.upcoming:
             extra.append(f"{len(sections.upcoming)} en los próximos días")
-        if not extra:
-            return f"{first}."
-        if len(extra) == 1:
-            return f"{first} y {extra[0]}."
-        return f"{first}, {extra[0]} y {extra[1]}."
+        return _join_es([first] + extra) + "."
 
-    def _header_html(self, sections: Sections, today: date, upcoming_days: int) -> str:
-        strip = self._agenda_strip_html(sections, today, upcoming_days)
-        return (
-            '<tr><td class="hero px" style="background-color:#eef2ff;'
-            'border-radius:17px 17px 0 0;padding:30px 32px 28px 32px;">'
-            '<div class="hero-eyebrow" style="font-size:12px;line-height:16px;'
-            "font-weight:700;letter-spacing:0.12em;text-transform:uppercase;"
-            'color:#6366f1;">Buenos días</div>'
-            '<div class="h1 hero-title" style="font-size:27px;line-height:33px;'
-            'font-weight:800;letter-spacing:-0.01em;color:#1e1b4b;margin-top:6px;">'
-            f"{html.escape(format_long_date(today))}</div>"
-            '<div class="hero-text" style="font-size:15px;line-height:22px;'
-            'color:#4b5563;margin-top:8px;">'
-            f"{html.escape(self.greeting_line(sections))}</div>"
-            f"{strip}</td></tr>"
-        )
+    # ------------------------------------------------------------- public API
 
-    def _agenda_strip_html(
-        self, sections: Sections, today: date, upcoming_days: int
-    ) -> str:
-        """Row of small cells: Vencidas, Hoy and each upcoming day with a count."""
-        if not sections.total:
-            return ""
-        # Cell kinds: "red" (overdue > 0), "accent" (today) and "plain".
-        cells = [
-            ("Vencidas", len(sections.overdue), "red" if sections.overdue else "plain"),
-            ("Hoy", len(sections.today), "accent"),
+    def build_digest(
+        self,
+        tasks: Iterable[Dict[str, Any]],
+        today: date,
+        upcoming_days: int = 3,
+        rescheduled: Sequence[Any] = (),
+        warnings: Sequence[str] = (),
+    ) -> EmailContent:
+        """Builds subject, HTML and plain text for the digest."""
+        sections = self.group_tasks(tasks, today, upcoming_days)
+        subject = self.subject(sections)
+        html_body = self._render_html(sections, today, rescheduled, warnings)
+        text_body = self._render_text(sections, today, rescheduled, warnings)
+        return EmailContent(subject, html_body, text_body, sections)
+
+    # ------------------------------------------------------------------- HTML
+
+    def _load_template(self) -> str:
+        if self._template is None:
+            with open(self.TEMPLATE_PATH, "r", encoding="utf-8") as f:
+                self._template = f.read()
+        return self._template
+
+    def _render_html(self, sections, today, rescheduled, warnings) -> str:
+        parts = [self._masthead_html(today), self._dateline_html(sections, today)]
+        if sections.total:
+            parts.append(self._stats_html(sections))
+            present = [(key, items) for key, items in sections.items() if items]
+            for number, (key, items) in enumerate(present):
+                parts.append(self._section_html(key, items, today, ROMAN[number]))
+            preheader = self.summary(sections).capitalize()
+        else:
+            parts.append(self._empty_html())
+            preheader = "Nada pendiente hoy. Disfruta el día."
+        parts += [
+            self._rescheduled_html(rescheduled),
+            self._warnings_html(warnings),
+            self._footer_html(),
         ]
-        if upcoming_days <= MAX_STRIP_DAYS:
-            for offset in range(1, upcoming_days + 1):
-                day = today + timedelta(days=offset)
-                count = sum(
-                    1 for t in sections.upcoming if t.when and t.when.day == day
-                )
-                label = (
-                    "Mañana"
-                    if offset == 1
-                    else f"{format_short_date(day)[:3].capitalize()} {day.day}"
-                )
-                cells.append((label, count, "plain"))
-        else:
-            cells.append(("Próximas", len(sections.upcoming), "plain"))
 
-        styles = {
-            # kind: (cell class, background, border, label color, number color)
-            "red": ("cell-red", "#fee2e2", "#fecaca", "#b91c1c", "#b91c1c"),
-            "accent": ("cell-accent", "#4f46e5", "#4f46e5", "#e0e7ff", "#ffffff"),
-            "plain": ("cell", "#ffffff", "#e0e7ff", "#6b7280", "#1e1b4b"),
+        replacements = {
+            "{{subject}}": html.escape(self.subject(sections)),
+            "{{preheader}}": html.escape(preheader),
+            "{{body}}": "".join(parts),
+            "{{dark_area_css}}": self._dark_area_css(),
         }
-        tds = []
-        cell_width = f"{100 // len(cells)}%"
-        for index, (label, count, kind) in enumerate(cells):
-            cls, bg, border, label_color, number_color = styles[kind]
-            if kind == "plain" and not count:
-                number_color = "#a5b4fc"
-            gap = (
-                ""
-                if index == 0
-                else '<td width="6" style="width:6px;font-size:0;">&nbsp;</td>'
-            )
-            tds.append(
-                f'{gap}<td class="{cls}" align="center" valign="top" '
-                f'width="{cell_width}" style="width:{cell_width};'
-                f"background-color:{bg};border:1px solid {border};"
-                'border-radius:12px;padding:10px 4px 11px 4px;">'
-                f'<div class="{cls}-label" style="font-size:11px;line-height:14px;'
-                f'font-weight:700;color:{label_color};white-space:nowrap;">'
-                f"{html.escape(label)}</div>"
-                f'<div class="count {cls}-num" style="font-size:24px;line-height:28px;'
-                f'font-weight:800;color:{number_color};margin-top:3px;">{count}</div></td>'
-            )
-        return (
-            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-            f'border="0" style="margin-top:22px;"><tr>{"".join(tds)}</tr></table>'
+        result = self._load_template()
+        for key, value in replacements.items():
+            result = result.replace(key, value)
+        return result
+
+    @staticmethod
+    def _dark_area_css() -> str:
+        return "\n".join(
+            f"    .{EmailAdapter._area_class(name)} {{ color: {dark} !important; }}"
+            for name, (_, dark) in AREA_STYLES.items()
         )
 
-    # --------------------------------------------------------------- sections
-
-    def _section_html(self, key: str, items: List[DigestTask], today: date) -> str:
-        title, tone = SECTION_STYLES[key]
-        accent, _, fg = TONES[tone]
-        if key == "upcoming":
-            rows = self._grouped_rows_html(items, today)
-        else:
-            rows = "".join(
-                self._task_html(task, today, key, index == len(items) - 1)
-                for index, task in enumerate(items)
-            )
-        title_color = fg if tone != "slate" else "#334155"
-        title_cls = f"fg-{tone}" if tone != "slate" else "txt"
-        return (
-            '<tr><td class="px" style="padding:28px 32px 0 32px;">'
-            '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
-            'style="margin-bottom:10px;"><tr>'
-            '<td valign="middle" style="padding-right:8px;font-size:15px;'
-            f'line-height:18px;">{SECTION_EMOJI[key]}</td>'
-            f'<td valign="middle" class="{title_cls}" style="font-size:15px;'
-            f'line-height:18px;font-weight:800;color:{title_color};padding-right:8px;">'
-            f"{title}</td>"
-            f'<td valign="middle">{self._pill(str(len(items)), tone)}</td>'
-            "</tr></table>"
-            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-            f'border="0" class="box rail-{tone}" style="background-color:#ffffff;'
-            f"border:1px solid {LINE};border-left:4px solid {accent};"
-            f'border-radius:12px;">{rows}</table></td></tr>'
+    @staticmethod
+    def _area_class(area: str) -> str:
+        ascii_name = (
+            area.lower()
+            .replace("á", "a")
+            .replace("é", "e")
+            .replace("í", "i")
+            .replace("ó", "o")
+            .replace("ú", "u")
         )
+        return "tag-" + re.sub(r"[^a-z0-9]+", "-", ascii_name).strip("-")
 
-    def _grouped_rows_html(self, items: List[DigestTask], today: date) -> str:
-        """Upcoming tasks grouped under a small header per day."""
-        groups: Dict[date, List[DigestTask]] = {}
-        for task in items:
-            groups.setdefault(task.when.day if task.when else today, []).append(task)
-        rows = []
-        for group_index, (day, tasks) in enumerate(groups.items()):
-            border = "" if group_index == 0 else f"border-top:1px solid {LINE};"
-            label = format_long_date(day)
-            if (day - today).days == 1:
-                label = f"Mañana · {label}"
-            rows.append(
-                f'<tr><td class="line txt-muted" style="{border}'
-                "padding:12px 16px 0 16px;font-size:11px;line-height:14px;"
-                "font-weight:800;letter-spacing:0.08em;text-transform:uppercase;"
-                f'color:{MUTED};">{html.escape(label)}</td></tr>'
-            )
-            rows += [
-                self._task_html(task, today, "upcoming", index == len(tasks) - 1)
-                for index, task in enumerate(tasks)
-            ]
-        return "".join(rows)
+    # ---------------------------------------------------------------- header
 
-    def _task_html(self, task: DigestTask, today: date, key: str, last: bool) -> str:
-        title = html.escape(task.titulo)
-        ring = (
-            '<span class="ring" style="display:inline-block;width:14px;height:14px;'
-            'border:2px solid #cbd5e1;border-radius:9px;"></span>'
-        )
-        if task.url:
-            href = _attr(task.url)
-            title = (
-                f'<a href="{href}" class="txt" style="color:{INK};'
-                f'text-decoration:none;">{title}</a>'
-            )
-            ring = f'<a href="{href}" style="text-decoration:none;">{ring}</a>'
-
-        meta = []
-        when = self._when_pill(task, today, key)
-        if when:
-            meta.append(when)
-        if task.area:
-            meta.append(self._area_tag_html(task.area))
-        meta_html = (
-            f'<div style="margin-top:6px;line-height:22px;">{"&nbsp;".join(meta)}</div>'
-            if meta
-            else ""
-        )
-        notes = ""
-        if task.notas:
-            notes = (
-                f'<div class="txt-muted" style="font-size:13px;line-height:20px;'
-                f'color:{MUTED};margin-top:8px;word-break:break-word;">'
-                f"{self._notes_html(task.notas)}</div>"
-            )
-        border = "" if last else f"border-bottom:1px solid {LINE};"
-        return (
-            f'<tr><td class="line" style="padding:12px 16px 13px 14px;{border}">'
+    def _masthead_html(self, today: date) -> str:
+        edition = today.timetuple().tm_yday
+        return _row(
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
             'border="0"><tr>'
-            '<td valign="top" width="26" style="width:26px;padding-top:2px;">'
-            f"{ring}</td>"
-            '<td valign="top">'
-            f'<div class="txt" style="font-size:15px;line-height:21px;font-weight:700;'
-            f'color:{INK};">{title}</div>'
-            f"{meta_html}{notes}</td></tr></table></td></tr>"
+            f'<td valign="top">{_label("Tareas · Edición diaria", ACCENT, "accent")}</td>'
+            f'<td valign="top" align="right">{_label(f"Nº {edition}", MUTED, "muted")}'
+            "</td></tr></table>"
+            f'<div class="rule-ink" style="border-top:2px solid {INK};margin-top:10px;">'
+            "</div>"
+            f'<div class="rule-ink" style="border-top:1px solid {INK};margin-top:3px;">'
+            "</div>",
+            "36px 40px 0 40px",
         )
 
-    def _when_pill(self, task: DigestTask, today: date, key: str) -> str:
-        if key in ("upcoming", "today"):
-            # The day is already in the section or group header; only the time
-            # adds information.
-            if task.when and task.when.time:
-                return self._pill(task.when.time, "blue" if key == "today" else "slate")
-            return ""
-        return self._pill(self._when_label(task, today), "red")
+    def _dateline_html(self, sections: Sections, today: date) -> str:
+        weekday = DAYS[today.weekday()]
+        rest = f"de {MONTHS[today.month - 1]} de {today.year}"
+        lead = f"Buenos días. {self.greeting_line(sections)}"
+        return _row(
+            '<table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr>'
+            f'<td valign="top" class="accent numeral" style="font-family:{SERIF};'
+            f"font-size:86px;line-height:80px;font-weight:bold;color:{ACCENT};"
+            f'padding-right:18px;">{today.day}</td>'
+            '<td valign="top" style="padding-top:8px;">'
+            f'<div class="ink weekday" style="font-size:28px;line-height:32px;'
+            f'font-style:italic;color:{INK};">{weekday}</div>'
+            f'<div class="muted" style="font-size:16px;line-height:22px;color:{MUTED};">'
+            f"{rest}</div></td></tr></table>"
+            f'<p class="body" style="font-size:17px;line-height:27px;margin:18px 0 0 0;'
+            f'color:{BODY};">{html.escape(lead)}</p>',
+            "22px 40px 0 40px",
+        )
 
-    def _area_tag_html(self, area: str) -> str:
-        bg, fg, _, _ = AREA_STYLES.get(area, DEFAULT_AREA_STYLE)
-        emoji = AREA_EMOJI.get(area)
-        label = f"{emoji} {html.escape(area)}" if emoji else html.escape(area)
+    def _stats_html(self, sections: Sections) -> str:
+        """Newspaper style box: three big numerals split by thin rules."""
+        overdue = len(sections.overdue)
+        stats = [
+            (
+                overdue,
+                "Vencidas",
+                RED if overdue else MUTED,
+                "red" if overdue else "muted",
+            ),
+            (len(sections.today), "Hoy", ACCENT, "accent"),
+            (len(sections.upcoming), "Próximas", INK, "ink"),
+        ]
+        cells = []
+        for index, (count, label, color, css_class) in enumerate(stats):
+            divider = "" if index == 0 else f"border-left:1px solid {RULE};"
+            cells.append(
+                f'<td class="rule" width="33%" align="center" valign="top" '
+                f'style="{divider}padding:12px 4px 10px 4px;">'
+                f'<div class="{css_class} stat" style="font-family:{SERIF};'
+                f"font-size:34px;line-height:38px;font-weight:bold;color:{color};"
+                f'">{count}</div>'
+                f'{_label(label, MUTED, "muted", "margin-top:4px;")}</td>'
+            )
+        return _row(
+            '<table role="presentation" class="rule-ink" width="100%" cellpadding="0" '
+            f'cellspacing="0" border="0" style="border-top:1px solid {INK};'
+            f'border-bottom:1px solid {INK};"><tr>{"".join(cells)}</tr></table>',
+            "24px 40px 0 40px",
+        )
+
+    # ---------------------------------------------------------------- sections
+
+    def _section_html(
+        self, key: str, items: List[DigestTask], today: date, number: str
+    ) -> str:
+        _, heading, color, css_class = SECTION_STYLES[key]
+        if key == "upcoming":
+            rows = self._upcoming_rows_html(items, today)
+        else:
+            rows = "".join(self._task_row_html(task, today, key) for task in items)
+        title = _label(
+            f"{number}. {heading}",
+            color,
+            f"{css_class} rule",
+            f"border-bottom:1px solid {RULE};padding-bottom:8px;",
+        )
+        return _row(
+            f"{title}"
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            f'border="0" style="margin-top:4px;">{rows}</table>',
+            "30px 40px 0 40px",
+        )
+
+    def _upcoming_rows_html(self, items: List[DigestTask], today: date) -> str:
+        """Upcoming tasks with the day in a left column, shown once per day."""
+        rows = []
+        previous = None
+        for task in items:
+            day = task.when.day if task.when else today
+            label = ""
+            if day != previous:
+                label = (
+                    "mañana" if (day - today).days == 1 else format_short_date(day)[:-4]
+                )
+            previous = day
+            rows.append(self._task_row_html(task, today, "upcoming", day_label=label))
+        return "".join(rows)
+
+    def _task_row_html(
+        self, task: DigestTask, today: date, key: str, day_label: Optional[str] = None
+    ) -> str:
+        overdue = key == "overdue"
+        box_color, box_class = (RED, "box-red") if overdue else (ACCENT, "box")
+        box = (
+            f'<span class="{box_class}" style="display:inline-block;width:11px;'
+            f'height:11px;border:1.5px solid {box_color};border-radius:2px;"></span>'
+        )
+        title = html.escape(task.titulo)
+        if task.url:
+            href = _attr(task.url)
+            box = f'<a href="{href}" style="text-decoration:none;">{box}</a>'
+            title = (
+                f'<a href="{href}" class="ink" style="color:{INK};'
+                f'text-decoration:none;">{title}</a>'
+            )
+
+        details = []
+        if task.area:
+            details.append(self._area_html(task.area))
+        if task.notas:
+            details.append(self._notes_html(task.notas))
+        details_html = (
+            f'<div class="muted" style="font-size:14px;line-height:21px;color:{MUTED};'
+            f'margin-top:4px;word-break:break-word;">{" · ".join(details)}</div>'
+            if details
+            else ""
+        )
+
+        when = self._when_html(task, today, key)
+        border = f"border-bottom:1px dotted {DOT};"
+        day_cell = ""
+        if day_label is not None:
+            day_cell = (
+                f'<td class="dot muted" width="62" valign="top" style="width:62px;'
+                f"{border}padding:14px 0 13px 0;font-size:14px;line-height:23px;"
+                f'font-style:italic;color:{MUTED};">{html.escape(day_label)}</td>'
+            )
+        # Without a date or time on the right, the title takes that space too.
+        when_cell = (
+            f'<td class="dot" align="right" valign="top" style="{border}'
+            f'padding:16px 0 13px 12px;white-space:nowrap;">{when}</td>'
+            if when
+            else ""
+        )
+        colspan = "" if when else ' colspan="2"'
         return (
-            f'<span class="{self._area_class(area)}" style="display:inline-block;'
-            f"background-color:{bg};color:{fg};font-size:12px;line-height:18px;"
-            f'font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap;">'
-            f"{label}</span>"
+            f"<tr>{day_cell}"
+            f'<td class="dot" width="24" valign="top" style="width:24px;{border}'
+            f'padding:19px 0 13px 0;line-height:11px;">{box}</td>'
+            f'<td class="dot" valign="top"{colspan} style="{border}'
+            'padding:14px 0 13px 0;">'
+            f'<div class="ink task" style="font-size:18px;line-height:24px;color:{INK};">'
+            f"{title}</div>{details_html}</td>{when_cell}</tr>"
+        )
+
+    def _when_html(self, task: DigestTask, today: date, key: str) -> str:
+        """Right column: how late an overdue task is, or the time of day."""
+        if key == "overdue":
+            text, color, css_class = self._when_label(task, today), RED, "red"
+        elif task.when and task.when.time:
+            text, color, css_class = task.when.time, ACCENT, "accent"
+        else:
+            return ""
+        return (
+            f'<span class="{css_class}" style="font-size:14px;line-height:20px;'
+            f'font-style:italic;color:{color};">{html.escape(text)}</span>'
+        )
+
+    def _area_html(self, area: str) -> str:
+        color, _ = AREA_STYLES.get(area, DEFAULT_AREA_STYLE)
+        return (
+            f'<i class="{self._area_class(area)}" style="color:{color};">'
+            f"{html.escape(area.lower())}</i>"
         )
 
     @staticmethod
@@ -514,8 +487,8 @@ class EmailAdapter:
             parts.append(html.escape(notes[last : match.start()]))
             href = trimmed if trimmed.startswith("http") else f"https://{trimmed}"
             parts.append(
-                f'<a href="{_attr(href)}" class="link" '
-                f'style="color:#2563eb;text-decoration:underline;">'
+                f'<a href="{_attr(href)}" class="accent" '
+                f'style="color:{ACCENT};text-decoration:underline;">'
                 f"{html.escape(trimmed)}</a>"
             )
             last = end
@@ -524,48 +497,43 @@ class EmailAdapter:
 
     @staticmethod
     def _empty_html() -> str:
-        accent, soft, fg = TONES["green"]
-        return (
-            '<tr><td class="px" style="padding:22px 32px 4px 32px;">'
-            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-            f'border="0"><tr><td class="soft-green" style="background-color:{soft};'
-            f'border:1px solid #bbf7d0;border-radius:14px;padding:22px 20px;">'
-            f'<div class="fg-green" style="font-size:17px;line-height:24px;font-weight:800;'
-            f'color:{fg};">Nada pendiente hoy</div>'
-            f'<div class="txt-muted" style="font-size:14px;line-height:21px;color:{MUTED};'
-            'margin-top:4px;">No hay tareas vencidas, para hoy ni para los próximos '
-            "días.</div></td></tr></table></td></tr>"
+        return _row(
+            f'<div class="rule-ink" style="border-top:1px solid {INK};'
+            f'border-bottom:1px solid {INK};padding:26px 0;text-align:center;">'
+            f'<div class="ink" style="font-size:30px;line-height:36px;font-style:italic;'
+            f'color:{INK};">Página en blanco.</div>'
+            f'<div class="muted" style="font-size:15px;line-height:23px;color:{MUTED};'
+            'margin-top:8px;">No hay nada vencido, para hoy ni para los próximos '
+            "días.</div></div>",
+            "26px 40px 0 40px",
         )
 
+    # ------------------------------------------------------------ notes, footer
+
     def _rescheduled_html(self, rescheduled: Sequence[Any]) -> str:
-        """Green box at the end listing recurring tasks moved in this run."""
+        """ "Nota del día" listing recurring tasks moved in this run."""
         if not rescheduled:
             return ""
-        _, soft, fg = TONES["green"]
-        lines = []
+        items = []
         for item in rescheduled:
             title = html.escape(item.titulo)
             if item.url:
                 title = (
-                    f'<a href="{_attr(item.url)}" class="txt" '
+                    f'<a href="{_attr(item.url)}" class="ink" '
                     f'style="color:{INK};text-decoration:none;">{title}</a>'
                 )
-            lines.append(
-                f'<div class="txt" style="margin-top:6px;color:{INK};">'
-                f"<strong>{title}</strong>: "
-                f'<span class="txt-muted" style="color:{MUTED};">'
-                f"{html.escape(self._moved_label(item))}</span></div>"
+            items.append(
+                f"<b>{title}</b> "
+                f'<span class="muted" style="color:{MUTED};">'
+                f"({html.escape(self._moved_label(item))})</span>"
             )
-        return (
-            '<tr><td class="px" style="padding:26px 32px 0 32px;">'
-            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-            f'border="0"><tr><td class="soft-green" style="background-color:{soft};'
-            "border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px;"
-            'font-size:14px;line-height:20px;">'
-            f'<div class="fg-green" style="font-size:12px;line-height:16px;font-weight:800;'
-            f'letter-spacing:0.09em;text-transform:uppercase;color:{fg};">'
-            f"🔁 Reprogramadas hoy ({len(rescheduled)})</div>"
-            f'{"".join(lines)}</td></tr></table></td></tr>'
+        verb = "Se reprogramó" if len(items) == 1 else "Se reprogramaron"
+        return _row(
+            f'<div class="note body" style="background-color:{NOTE_BG};'
+            f"border-left:3px solid {ACCENT};padding:14px 18px;font-size:15px;"
+            f'line-height:23px;color:{BODY};"><i>Nota del día.</i> {verb} '
+            f"{_join_es(items)}.</div>",
+            "30px 40px 0 40px",
         )
 
     @staticmethod
@@ -579,37 +547,32 @@ class EmailAdapter:
     def _warnings_html(warnings: Sequence[str]) -> str:
         if not warnings:
             return ""
-        _, soft, fg = TONES["red"]
-        items = "".join(
-            f'<div style="margin-top:4px;">{html.escape(w)}</div>' for w in warnings
-        )
-        return (
-            '<tr><td class="px" style="padding:18px 32px 0 32px;">'
-            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-            f'border="0"><tr><td class="soft-red fg-red" style="background-color:{soft};'
-            f"border:1px solid #fecaca;border-radius:12px;padding:12px 16px;"
-            f'font-size:13px;line-height:19px;color:{fg};">'
-            f"<strong>Atención</strong>{items}</td></tr></table></td></tr>"
+        items = "".join(f" {html.escape(w)}" for w in warnings)
+        return _row(
+            f'<div class="note-red red" style="background-color:{NOTE_RED_BG};'
+            f"border-left:3px solid {RED};padding:14px 18px;font-size:15px;"
+            f'line-height:23px;color:{RED};"><i>Aviso.</i>{items}</div>',
+            "16px 40px 0 40px",
         )
 
     def _footer_html(self) -> str:
-        button = ""
+        link = ""
         if self.notion_tasks_url:
-            button = (
-                '<table role="presentation" cellpadding="0" cellspacing="0" border="0">'
-                '<tr><td class="btn" style="background-color:#4f46e5;border-radius:10px;">'
-                f'<a href="{_attr(self.notion_tasks_url)}" class="btn-txt" '
-                'style="display:inline-block;padding:12px 20px;font-size:14px;'
-                'line-height:18px;font-weight:700;color:#ffffff;text-decoration:none;">'
-                "Abrir Tareas en Notion &rarr;</a></td></tr></table>"
+            link = (
+                f'<a href="{_attr(self.notion_tasks_url)}" class="accent" '
+                f'style="font-family:{SANS};font-size:12px;letter-spacing:0.15em;'
+                f"text-transform:uppercase;color:{ACCENT};text-decoration:none;"
+                'font-weight:700;white-space:nowrap;">Abrir Tareas en Notion &rarr;</a>'
             )
-        return (
-            '<tr><td class="px" style="padding:30px 32px 30px 32px;">'
-            f"{button}"
-            f'<div class="line txt-faint" style="border-top:1px solid {LINE};'
-            f"margin-top:{'24px' if button else '0'};padding-top:16px;font-size:12px;"
-            f'line-height:18px;color:{FAINT};">Resumen diario de tu base Tareas en '
-            "Notion. Chulea una tarea para quitarla de aquí.</div></td></tr>"
+        return _row(
+            f'<div class="rule-ink" style="border-top:1px solid {INK};"></div>'
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            'border="0" style="margin-top:12px;"><tr>'
+            f'<td class="muted" style="font-size:13px;line-height:19px;font-style:italic;'
+            f'color:{MUTED};padding-right:12px;">Chulea una tarea para quitarla de esta '
+            "página.</td>"
+            f'<td align="right" valign="top">{link}</td></tr></table>',
+            "32px 40px 36px 40px",
         )
 
     # ------------------------------------------------------------- plain text

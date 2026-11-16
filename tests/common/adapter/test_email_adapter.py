@@ -115,6 +115,9 @@ class TestHtml(unittest.TestCase):
         )
         self.html = self.content.html
 
+    def build(self, tasks, **kwargs):
+        return self.adapter.build_digest(tasks, TODAY, 3, **kwargs).html
+
     def test_is_email_safe(self):
         self.assertIn('<meta name="color-scheme" content="light dark">', self.html)
         self.assertIn("prefers-color-scheme: dark", self.html)
@@ -123,49 +126,72 @@ class TestHtml(unittest.TestCase):
         self.assertNotIn("box-shadow", self.html)
         self.assertNotIn("{{", self.html)
 
-    def test_header_and_preheader(self):
-        self.assertIn("Lunes, 16 de noviembre", self.html)
+    def test_masthead_and_dateline(self):
+        self.assertIn("Tareas · Edición diaria", self.html)
+        self.assertIn("Nº 320", self.html)  # 16 Nov is day 320 of the year
+        self.assertIn(">16</td>", self.html)
+        self.assertIn(">lunes</div>", self.html)
+        self.assertIn("de noviembre de 2026", self.html)
+        self.assertIn(
+            "Buenos días. Hoy tienes 1 tarea, 1 vencida por cerrar y 1 en los "
+            "próximos días.",
+            self.html,
+        )
+
+    def test_preheader(self):
         self.assertIn("1 vencida, 1 hoy, 1 próxima", self.html)
         self.assertIn("display:none", self.html)
 
-    def test_section_titles_and_rails(self):
-        self.assertIn("Vencidas", self.html)
-        self.assertIn("Próximos días", self.html)
-        # Colored side rail per section: red, blue and gray.
-        self.assertIn("border-left:4px solid #ef4444", self.html)
-        self.assertIn("border-left:4px solid #3b82f6", self.html)
-        self.assertIn("border-left:4px solid #cbd5e1", self.html)
+    def test_stats_box(self):
+        self.assertIn(">Vencidas</div>", self.html)
+        self.assertIn(">Hoy</div>", self.html)
+        self.assertIn(">Próximas</div>", self.html)
 
-    def test_empty_sections_hidden(self):
-        content = self.adapter.build_digest([t("c", "2026-11-16")], TODAY, 3)
-        self.assertNotIn('class="box rail-red"', content.html)
-        self.assertNotIn('class="box rail-slate"', content.html)
-        self.assertNotIn("Próximos días", content.html)
-        self.assertIn('class="box rail-blue"', content.html)
+    def test_overdue_stat_red_only_when_needed(self):
+        red_stat = 'class="red stat"'
+        self.assertIn(red_stat, self.html)
+        self.assertNotIn(red_stat, self.build([t("c", "2026-11-16")]))
 
-    def test_overdue_cell_red_only_when_needed(self):
-        red_cell = "background-color:#fee2e2;border:1px solid #fecaca"
-        self.assertIn(red_cell, self.html)
-        content = self.adapter.build_digest([t("c", "2026-11-16")], TODAY, 3)
-        self.assertNotIn(red_cell, content.html)
+    def test_sections_are_numbered_in_order(self):
+        self.assertIn("I. Pendientes de días anteriores", self.html)
+        self.assertIn("II. Para hoy", self.html)
+        self.assertIn("III. Lo que viene", self.html)
+
+    def test_numbering_skips_empty_sections(self):
+        html_ = self.build([t("c", "2026-11-16"), t("d", "2026-11-17")])
+        self.assertIn("I. Para hoy", html_)
+        self.assertIn("II. Lo que viene", html_)
+        self.assertNotIn("Pendientes de días anteriores", html_)
 
     def test_task_title_links_to_notion_and_is_escaped(self):
         self.assertIn('href="https://www.notion.so/p1"', self.html)
         self.assertIn("Vacuna &lt;Nala&gt;", self.html)
         self.assertNotIn("<Nala>", self.html)
 
-    def test_area_tag_and_relative_dates(self):
-        self.assertIn(">💰 Finanzas</span>", self.html)
-        self.assertIn("tag-finanzas", self.html)
+    def test_checkbox_per_task(self):
+        self.assertEqual(self.html.count('class="box-red"'), 1)  # overdue
+        self.assertEqual(self.html.count('class="box"'), 2)  # today, upcoming
+
+    def test_area_and_right_column(self):
+        self.assertIn(">finanzas</i>", self.html)
+        self.assertIn('class="tag-finanzas"', self.html)
         self.assertIn(">hace 2 días</span>", self.html)
-        # Today and upcoming only show the time; the day is in the header.
         self.assertIn(">10:30 a. m.</span>", self.html)
         self.assertNotIn(">hoy</span>", self.html)
-        self.assertIn(">Miércoles, 18 de noviembre</td>", self.html)
 
     def test_task_without_area_has_no_tag(self):
-        content = self.adapter.build_digest([t("Sin area", "2026-11-16")], TODAY, 3)
-        self.assertNotIn('class="tag-', content.html)
+        self.assertNotIn('class="tag-', self.build([t("Sin area", "2026-11-16")]))
+
+    def test_title_uses_full_width_without_date_or_time(self):
+        html_ = self.build([t("Sin hora", "2026-11-16")])
+        self.assertIn('colspan="2"', html_)
+
+    def test_upcoming_day_label_once_per_day(self):
+        html_ = self.build(
+            [t("a", "2026-11-17"), t("b", "2026-11-17"), t("c", "2026-11-18")]
+        )
+        self.assertEqual(html_.count(">mañana</td>"), 1)
+        self.assertEqual(html_.count(">mié 18</td>"), 1)
 
     def test_notes_links_escape_and_line_breaks(self):
         self.assertIn('href="https://example.com/a?b=1&amp;c=2"', self.html)
@@ -173,63 +199,42 @@ class TestHtml(unittest.TestCase):
         self.assertIn('href="https://www.test.co"', self.html)
         self.assertIn("<br>", self.html)
 
-    def test_footer(self):
-        self.assertIn("Reprogramadas hoy (1)", self.html)
-        self.assertIn(">Pagar Vanti</a></strong>: ", self.html)
-        self.assertIn(">del 21 nov al 21 dic</span>", self.html)
-        # The rescheduled box comes after the task sections.
+    def test_rescheduled_note(self):
+        self.assertIn("<i>Nota del día.</i> Se reprogramó", self.html)
+        self.assertIn(">Pagar Vanti</a></b>", self.html)
+        self.assertIn("(del 21 nov al 21 dic)", self.html)
+        # The note comes after the task sections.
         self.assertGreater(
-            self.html.index("Reprogramadas hoy"), self.html.index("Próximos días")
+            self.html.index("Nota del día"), self.html.index("Lo que viene")
         )
-        self.assertIn("Abrir Tareas en Notion", self.html)
-        self.assertIn('href="https://www.notion.so/db"', self.html)
-        self.assertIn("Aviso de permisos", self.html)
 
-    def test_no_rescheduled_box_when_nothing_moved(self):
+    def test_rescheduled_plural_and_without_old_date_or_url(self):
+        html_ = self.build(
+            [],
+            rescheduled=[
+                Rescheduled("Pagar TC", date(2026, 12, 1)),
+                Rescheduled("Pagar ETB", date(2026, 12, 12)),
+            ],
+        )
+        self.assertIn("Se reprogramaron <b>Pagar TC</b>", html_)
+        self.assertIn("(al 1 dic)</span> y <b>Pagar ETB</b>", html_)
+
+    def test_no_note_when_nothing_moved(self):
         content = self.adapter.build_digest([t("c", "2026-11-16")], TODAY, 3)
-        self.assertNotIn("Reprogramadas hoy", content.html)
+        self.assertNotIn("Nota del día", content.html)
         self.assertNotIn("REPROGRAMADAS", content.text)
 
-    def test_rescheduled_without_old_date_or_url(self):
-        content = self.adapter.build_digest(
-            [], TODAY, 3, rescheduled=[Rescheduled("Pagar TC", date(2026, 12, 1))]
-        )
-        self.assertIn("<strong>Pagar TC</strong>: ", content.html)
-        self.assertIn(">al 1 dic</span>", content.html)
+    def test_warning(self):
+        self.assertIn("<i>Aviso.</i> Aviso de permisos", self.html)
+
+    def test_footer(self):
+        self.assertIn("Abrir Tareas en Notion", self.html)
+        self.assertIn('href="https://www.notion.so/db"', self.html)
+        self.assertIn("Chulea una tarea para quitarla de esta página.", self.html)
 
     def test_no_footer_link_without_url(self):
         content = EmailAdapter(TZ).build_digest([], TODAY, 3)
         self.assertNotIn("Abrir Tareas en Notion", content.html)
-
-    def test_header_greeting(self):
-        self.assertIn("Buenos días", self.html)
-        self.assertIn(
-            "Hoy tienes 1 tarea, 1 vencida por cerrar y 1 en los próximos días.",
-            self.html,
-        )
-
-    def test_agenda_strip_one_cell_per_day(self):
-        for label in (
-            ">Vencidas</div>",
-            ">Hoy</div>",
-            ">Mañana</div>",
-            ">Mié 18</div>",
-            ">Jue 19</div>",
-        ):
-            self.assertIn(label, self.html)
-        self.assertIn('width="20%"', self.html)
-
-    def test_agenda_strip_collapses_long_windows(self):
-        content = self.adapter.build_digest([t("d", "2026-11-22")], TODAY, 7)
-        self.assertIn(">Próximas</div>", content.html)
-        self.assertNotIn(">Mañana</div>", content.html)
-
-    def test_upcoming_grouped_by_day(self):
-        content = self.adapter.build_digest(
-            [t("a", "2026-11-17"), t("b", "2026-11-17"), t("c", "2026-11-18")], TODAY, 3
-        )
-        self.assertEqual(content.html.count("Mañana · Martes, 17 de noviembre"), 1)
-        self.assertEqual(content.html.count(">Miércoles, 18 de noviembre</td>"), 1)
 
     def test_greeting_variants(self):
         def line(tasks):
@@ -242,19 +247,17 @@ class TestHtml(unittest.TestCase):
             "Hoy no tienes tareas nuevas y 2 vencidas por cerrar.",
         )
 
-    def test_warning_box(self):
-        self.assertIn("<strong>Atención</strong>", self.html)
-
     def test_unknown_area_uses_default_style(self):
-        content = self.adapter.build_digest(
-            [t("x", "2026-11-16", area="Viajes")], TODAY, 3
-        )
-        self.assertIn(">Viajes</span>", content.html)
+        self.assertIn(">viajes</i>", self.build([t("x", "2026-11-16", area="Viajes")]))
+
+    def test_dark_mode_area_colors(self):
+        self.assertIn(".tag-finanzas { color: #8fcf9f !important; }", self.html)
 
     def test_empty_digest(self):
-        content = self.adapter.build_digest([], TODAY, 3)
-        self.assertIn("Nada pendiente hoy", content.html)
-        self.assertNotIn('card-neutral" width', content.html)
+        html_ = self.build([])
+        self.assertIn("Página en blanco.", html_)
+        self.assertNotIn('class="red stat"', html_)
+        self.assertNotIn(">Vencidas</div>", html_)
 
     def test_template_cached(self):
         first = self.adapter._load_template()
