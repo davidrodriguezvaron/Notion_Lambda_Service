@@ -2,6 +2,8 @@
 exclude = .git,__pycache__,.venv,venv,env,.env,build,dist,layer
 max-line-length = 127
 max-complexity = 10
+# E203 conflicts with Black slice formatting
+extend-ignore = E203
 count = True
 statistics = True
 show-source = True

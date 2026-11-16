@@ -1,180 +1,63 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Modern Task Digest</title>
-    <style>
-        body {
-            margin: 0;
-            padding: 0;
-            background-color: #F3F4F6;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-            -webkit-font-smoothing: antialiased;
-        }
-
-        .wrapper {
-            width: 100%;
-            table-layout: fixed;
-            background-color: #F3F4F6;
-            padding-bottom: 40px;
-        }
-
-        .main-content {
-            background-color: #ffffff;
-            margin: 0 auto;
-            max-width: 600px;
-            border-radius: 16px;
-            overflow: hidden;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-
-        .header {
-            background: linear-gradient(135deg, #4F46E5 0%, #3730A3 100%);
-            padding: 30px 40px;
-            text-align: left;
-        }
-
-        .header h1 {
-            color: #ffffff;
-            margin: 0;
-            font-size: 24px;
-            font-weight: 700;
-            letter-spacing: -0.5px;
-        }
-
-        .header p {
-            color: #E0E7FF;
-            margin: 5px 0 0 0;
-            font-size: 14px;
-            font-weight: 500;
-        }
-
-        .task-list {
-            width: 100%;
-            border-collapse: collapse;
-        }
-
-        .task-row td {
-            padding: 18px 30px;
-            border-bottom: 1px solid #F3F4F6;
-            vertical-align: top;
-        }
-
-        .task-row:last-child td {
-            border-bottom: none;
-        }
-
-        .date-cell {
-            width: 100px;
-            padding-right: 10px !important;
-        }
-
-        .date-pill {
-            display: inline-block;
-            background-color: #EEF2FF;
-            color: #4F46E5;
-            font-size: 11px;
-            font-weight: 700;
-            padding: 4px 10px;
-            border-radius: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            white-space: nowrap;
-        }
-
-        .task-title {
-            font-size: 15px;
-            color: #1F2937;
-            font-weight: 600;
-            line-height: 1.4;
-            display: block;
-            margin-bottom: 4px;
-        }
-
-        .task-notes {
-            font-size: 13px;
-            color: #6B7280;
-            background-color: #F9FAFB;
-            padding: 8px 12px;
-            border-radius: 6px;
-            border-left: 3px solid #D1D5DB;
-            display: block;
-            margin-top: 8px;
-            word-break: break-all;
-        }
-
-        .link-text {
-            color: #4F46E5;
-            text-decoration: none;
-        }
-
-        .footer {
-            text-align: center;
-            padding: 30px;
-            color: #9CA3AF;
-            font-size: 12px;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<meta name="x-apple-disable-message-reformatting">
+<title>Tareas: 2 vencidas, 3 hoy, 3 próximas</title>
+<style>
+  :root { color-scheme: light dark; supported-color-schemes: light dark; }
+  body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
+  a { text-decoration: none; }
+  @media screen and (max-width: 480px) {
+    .px { padding-left: 22px !important; padding-right: 22px !important; }
+    .gutter { padding: 0 !important; }
+    .paper { border-left: 0 !important; border-right: 0 !important; }
+    .numeral { font-size: 64px !important; line-height: 60px !important; }
+    .weekday { font-size: 24px !important; line-height: 28px !important; }
+    .stat { font-size: 28px !important; line-height: 32px !important; }
+    .task { font-size: 17px !important; line-height: 23px !important; }
+  }
+  /* "Papel de noche": warm dark paper and cream ink, never pure black. */
+  @media (prefers-color-scheme: dark) {
+    .page { background-color: #17130f !important; }
+    .paper { background-color: #221c17 !important; border-color: #3d342c !important; }
+    .ink { color: #efe6d8 !important; }
+    .body { color: #ddd2c3 !important; }
+    .muted { color: #a89a8b !important; }
+    .accent { color: #e0915e !important; }
+    .red { color: #ff8f7a !important; }
+    .rule { border-color: #3d342c !important; }
+    .rule-ink { border-color: #8a7b6e !important; }
+    .dot { border-color: #4a3f36 !important; }
+    .note { background-color: #2c241e !important; border-left-color: #e0915e !important; }
+    .note-red { background-color: #2e1f1c !important; border-left-color: #ff8f7a !important; }
+    .box { border-color: #e0915e !important; }
+    .box-red { border-color: #ff8f7a !important; }
+    .tag-hogar { color: #e2b46a !important; }
+    .tag-gatos { color: #e79abb !important; }
+    .tag-carro { color: #a3b2e0 !important; }
+    .tag-finanzas { color: #8fcf9f !important; }
+    .tag-trabajo { color: #86c6dc !important; }
+    .tag-salud { color: #ec9a9a !important; }
+    .tag-personal { color: #c4b4a5 !important; }
+    .tag-estudio { color: #eba476 !important; }
+  }
+</style>
 </head>
-
-<body>
-
-    <div class="wrapper">
-        <div style="height: 40px;"></div>
-        <div class="main-content">
-            <div class="header">
-                <h1>Task Digest</h1>
-                <p>You have <strong>22 pending items</strong> in your queue.</p>
-            </div>
-
-            <table class="task-list">
-                <thead>
-                    <tr>
-                        <th scope="col" style="display: none;">Date</th>
-                        <th scope="col" style="display: none;">Task</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr class="task-row">
-                        <td class="date-cell">
-                            <span class="date-pill">Nov 24</span>
-                        </td>
-                        <td>
-                            <span class="task-title">Work on goals review</span>
-                            <div class="task-notes">Reach out to my Manager</div>
-                        </td>
-                    </tr>
-                    <tr class="task-row">
-                        <td class="date-cell">
-                            <span class="date-pill">Dec 01</span>
-                        </td>
-                        <td>
-                            <span class="task-title">Review Salesforce Latest Updates</span>
-                            <div class="task-notes">
-                                <a href="#" class="link-text">www.salesforce.com</a>
-                            </div>
-                        </td>
-                    </tr>
-                    <tr class="task-row">
-                        <td class="date-cell">
-                            <span class="date-pill">Dec 05</span>
-                        </td>
-                        <td>
-                            <span class="task-title">Pay rent</span>
-                        </td>
-                    </tr>
-
-                </tbody>
-            </table>
-        </div>
-
-        <div class="footer">
-            Generated via AWS Lambda • 2025 Personal Automation
-        </div>
-    </div>
-
+<body class="page" style="margin:0;padding:0;background-color:#efe7da;">
+<div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">2 vencidas, 3 hoy, 3 próximas&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;</div>
+<table role="presentation" class="page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#efe7da;">
+<tr>
+<td class="gutter" align="center" style="padding:28px 12px;">
+<table role="presentation" class="paper" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#fbf7f0;border:1px solid #e3d8c6;font-family:Georgia,'Times New Roman',serif;color:#3b2f2a;">
+<tr><td class="px" style="padding:36px 40px 0 40px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td valign="top"><div class="accent" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.2em;text-transform:uppercase;color:#a0522d;">Tareas · Edición diaria</div></td><td valign="top" align="right"><div class="muted" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.2em;text-transform:uppercase;color:#8a7b6e;">Nº 320</div></td></tr></table><div class="rule-ink" style="border-top:2px solid #3b2f2a;margin-top:10px;"></div><div class="rule-ink" style="border-top:1px solid #3b2f2a;margin-top:3px;"></div></td></tr><tr><td class="px" style="padding:22px 40px 0 40px;"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td valign="top" class="accent numeral" style="font-family:Georgia,'Times New Roman',serif;font-size:86px;line-height:80px;font-weight:bold;color:#a0522d;padding-right:18px;">16</td><td valign="top" style="padding-top:8px;"><div class="ink weekday" style="font-size:28px;line-height:32px;font-style:italic;color:#3b2f2a;">lunes</div><div class="muted" style="font-size:16px;line-height:22px;color:#8a7b6e;">de noviembre de 2026</div></td></tr></table><p class="body" style="font-size:17px;line-height:27px;margin:18px 0 0 0;color:#4a3d36;">Buenos días. Hoy tienes 3 tareas, 2 vencidas por cerrar y 3 en los próximos días.</p></td></tr><tr><td class="px" style="padding:24px 40px 0 40px;"><table role="presentation" class="rule-ink" width="100%" cellpadding="0" cellspacing="0" border="0" style="border-top:1px solid #3b2f2a;border-bottom:1px solid #3b2f2a;"><tr><td class="rule" width="33%" align="center" valign="top" style="padding:12px 4px 10px 4px;"><div class="red stat" style="font-family:Georgia,'Times New Roman',serif;font-size:34px;line-height:38px;font-weight:bold;color:#b42318;">2</div><div class="muted" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.2em;text-transform:uppercase;color:#8a7b6e;margin-top:4px;">Vencidas</div></td><td class="rule" width="33%" align="center" valign="top" style="border-left:1px solid #e3d8c6;padding:12px 4px 10px 4px;"><div class="accent stat" style="font-family:Georgia,'Times New Roman',serif;font-size:34px;line-height:38px;font-weight:bold;color:#a0522d;">3</div><div class="muted" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.2em;text-transform:uppercase;color:#8a7b6e;margin-top:4px;">Hoy</div></td><td class="rule" width="33%" align="center" valign="top" style="border-left:1px solid #e3d8c6;padding:12px 4px 10px 4px;"><div class="ink stat" style="font-family:Georgia,'Times New Roman',serif;font-size:34px;line-height:38px;font-weight:bold;color:#3b2f2a;">3</div><div class="muted" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.2em;text-transform:uppercase;color:#8a7b6e;margin-top:4px;">Próximas</div></td></tr></table></td></tr><tr><td class="px" style="padding:30px 40px 0 40px;"><div class="red rule" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.2em;text-transform:uppercase;color:#b42318;border-bottom:1px solid #e3d8c6;padding-bottom:8px;">I. Pendientes de días anteriores</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr><td class="dot" width="24" valign="top" style="width:24px;border-bottom:1px dotted #d6c9b5;padding:19px 0 13px 0;line-height:11px;"><a href="https://www.notion.so/ejemplo-1" style="text-decoration:none;"><span class="box-red" style="display:inline-block;width:11px;height:11px;border:1.5px solid #b42318;border-radius:2px;"></span></a></td><td class="dot" valign="top" style="border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;"><div class="ink task" style="font-size:18px;line-height:24px;color:#3b2f2a;"><a href="https://www.notion.so/ejemplo-1" class="ink" style="color:#3b2f2a;text-decoration:none;">Pagar ENEL</a></div><div class="muted" style="font-size:14px;line-height:21px;color:#8a7b6e;margin-top:4px;word-break:break-word;"><i class="tag-hogar" style="color:#9a6b1f;">hogar</i></div></td><td class="dot" align="right" valign="top" style="border-bottom:1px dotted #d6c9b5;padding:16px 0 13px 12px;white-space:nowrap;"><span class="red" style="font-size:14px;line-height:20px;font-style:italic;color:#b42318;">hace 2 días</span></td></tr><tr><td class="dot" width="24" valign="top" style="width:24px;border-bottom:1px dotted #d6c9b5;padding:19px 0 13px 0;line-height:11px;"><a href="https://www.notion.so/ejemplo-2" style="text-decoration:none;"><span class="box-red" style="display:inline-block;width:11px;height:11px;border:1.5px solid #b42318;border-radius:2px;"></span></a></td><td class="dot" valign="top" style="border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;"><div class="ink task" style="font-size:18px;line-height:24px;color:#3b2f2a;"><a href="https://www.notion.so/ejemplo-2" class="ink" style="color:#3b2f2a;text-decoration:none;">Revisar SIMIT</a></div><div class="muted" style="font-size:14px;line-height:21px;color:#8a7b6e;margin-top:4px;word-break:break-word;"><i class="tag-carro" style="color:#4a5a8a;">carro</i> · Consultar en <a href="https://www.fcm.org.co/simit/" class="accent" style="color:#a0522d;text-decoration:underline;">https://www.fcm.org.co/simit/</a> antes de pagar.</div></td><td class="dot" align="right" valign="top" style="border-bottom:1px dotted #d6c9b5;padding:16px 0 13px 12px;white-space:nowrap;"><span class="red" style="font-size:14px;line-height:20px;font-style:italic;color:#b42318;">ayer</span></td></tr></table></td></tr><tr><td class="px" style="padding:30px 40px 0 40px;"><div class="accent rule" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.2em;text-transform:uppercase;color:#a0522d;border-bottom:1px solid #e3d8c6;padding-bottom:8px;">II. Para hoy</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr><td class="dot" width="24" valign="top" style="width:24px;border-bottom:1px dotted #d6c9b5;padding:19px 0 13px 0;line-height:11px;"><a href="https://www.notion.so/ejemplo-5" style="text-decoration:none;"><span class="box" style="display:inline-block;width:11px;height:11px;border:1.5px solid #a0522d;border-radius:2px;"></span></a></td><td class="dot" valign="top" colspan="2" style="border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;"><div class="ink task" style="font-size:18px;line-height:24px;color:#3b2f2a;"><a href="https://www.notion.so/ejemplo-5" class="ink" style="color:#3b2f2a;text-decoration:none;">Ajustar seguridad iPhone</a></div></td></tr><tr><td class="dot" width="24" valign="top" style="width:24px;border-bottom:1px dotted #d6c9b5;padding:19px 0 13px 0;line-height:11px;"><a href="https://www.notion.so/ejemplo-3" style="text-decoration:none;"><span class="box" style="display:inline-block;width:11px;height:11px;border:1.5px solid #a0522d;border-radius:2px;"></span></a></td><td class="dot" valign="top" colspan="2" style="border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;"><div class="ink task" style="font-size:18px;line-height:24px;color:#3b2f2a;"><a href="https://www.notion.so/ejemplo-3" class="ink" style="color:#3b2f2a;text-decoration:none;">Responder LinkedIn</a></div><div class="muted" style="font-size:14px;line-height:21px;color:#8a7b6e;margin-top:4px;word-break:break-word;"><i class="tag-trabajo" style="color:#2f6f86;">trabajo</i></div></td></tr><tr><td class="dot" width="24" valign="top" style="width:24px;border-bottom:1px dotted #d6c9b5;padding:19px 0 13px 0;line-height:11px;"><a href="https://www.notion.so/ejemplo-4" style="text-decoration:none;"><span class="box" style="display:inline-block;width:11px;height:11px;border:1.5px solid #a0522d;border-radius:2px;"></span></a></td><td class="dot" valign="top" style="border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;"><div class="ink task" style="font-size:18px;line-height:24px;color:#3b2f2a;"><a href="https://www.notion.so/ejemplo-4" class="ink" style="color:#3b2f2a;text-decoration:none;">Vacuna Nala rabia</a></div><div class="muted" style="font-size:14px;line-height:21px;color:#8a7b6e;margin-top:4px;word-break:break-word;"><i class="tag-gatos" style="color:#a3466e;">gatos</i> · Llevar el carné de vacunas.<br>Preguntar por la desparasitación.</div></td><td class="dot" align="right" valign="top" style="border-bottom:1px dotted #d6c9b5;padding:16px 0 13px 12px;white-space:nowrap;"><span class="accent" style="font-size:14px;line-height:20px;font-style:italic;color:#a0522d;">10:30 a. m.</span></td></tr></table></td></tr><tr><td class="px" style="padding:30px 40px 0 40px;"><div class="muted rule" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:11px;line-height:16px;letter-spacing:0.2em;text-transform:uppercase;color:#8a7b6e;border-bottom:1px solid #e3d8c6;padding-bottom:8px;">III. Lo que viene</div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:4px;"><tr><td class="dot muted" width="62" valign="top" style="width:62px;border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;font-size:14px;line-height:23px;font-style:italic;color:#8a7b6e;">mañana</td><td class="dot" width="24" valign="top" style="width:24px;border-bottom:1px dotted #d6c9b5;padding:19px 0 13px 0;line-height:11px;"><a href="https://www.notion.so/ejemplo-6" style="text-decoration:none;"><span class="box" style="display:inline-block;width:11px;height:11px;border:1.5px solid #a0522d;border-radius:2px;"></span></a></td><td class="dot" valign="top" style="border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;"><div class="ink task" style="font-size:18px;line-height:24px;color:#3b2f2a;"><a href="https://www.notion.so/ejemplo-6" class="ink" style="color:#3b2f2a;text-decoration:none;">Cita médica Aleja</a></div><div class="muted" style="font-size:14px;line-height:21px;color:#8a7b6e;margin-top:4px;word-break:break-word;"><i class="tag-salud" style="color:#a33a3a;">salud</i></div></td><td class="dot" align="right" valign="top" style="border-bottom:1px dotted #d6c9b5;padding:16px 0 13px 12px;white-space:nowrap;"><span class="accent" style="font-size:14px;line-height:20px;font-style:italic;color:#a0522d;">3:00 p. m.</span></td></tr><tr><td class="dot muted" width="62" valign="top" style="width:62px;border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;font-size:14px;line-height:23px;font-style:italic;color:#8a7b6e;">mié 18</td><td class="dot" width="24" valign="top" style="width:24px;border-bottom:1px dotted #d6c9b5;padding:19px 0 13px 0;line-height:11px;"><a href="https://www.notion.so/ejemplo-7" style="text-decoration:none;"><span class="box" style="display:inline-block;width:11px;height:11px;border:1.5px solid #a0522d;border-radius:2px;"></span></a></td><td class="dot" valign="top" colspan="2" style="border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;"><div class="ink task" style="font-size:18px;line-height:24px;color:#3b2f2a;"><a href="https://www.notion.so/ejemplo-7" class="ink" style="color:#3b2f2a;text-decoration:none;">Cita mango</a></div><div class="muted" style="font-size:14px;line-height:21px;color:#8a7b6e;margin-top:4px;word-break:break-word;"><i class="tag-personal" style="color:#6b5d52;">personal</i></div></td></tr><tr><td class="dot muted" width="62" valign="top" style="width:62px;border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;font-size:14px;line-height:23px;font-style:italic;color:#8a7b6e;">jue 19</td><td class="dot" width="24" valign="top" style="width:24px;border-bottom:1px dotted #d6c9b5;padding:19px 0 13px 0;line-height:11px;"><a href="https://www.notion.so/ejemplo-8" style="text-decoration:none;"><span class="box" style="display:inline-block;width:11px;height:11px;border:1.5px solid #a0522d;border-radius:2px;"></span></a></td><td class="dot" valign="top" colspan="2" style="border-bottom:1px dotted #d6c9b5;padding:14px 0 13px 0;"><div class="ink task" style="font-size:18px;line-height:24px;color:#3b2f2a;"><a href="https://www.notion.so/ejemplo-8" class="ink" style="color:#3b2f2a;text-decoration:none;">Organizar bloques de trabajo en torno a las reuniones para poder enfocarme</a></div><div class="muted" style="font-size:14px;line-height:21px;color:#8a7b6e;margin-top:4px;word-break:break-word;"><i class="tag-estudio" style="color:#b0602a;">estudio</i> · Ideas: arquitectura hexagonal, problema N+1, cursor vs offset. <a href="https://www.notion.so" class="accent" style="color:#a0522d;text-decoration:underline;">www.notion.so</a></div></td></tr></table></td></tr><tr><td class="px" style="padding:30px 40px 0 40px;"><div class="note body" style="background-color:#f3ebdd;border-left:3px solid #a0522d;padding:14px 18px;font-size:15px;line-height:23px;color:#4a3d36;"><i>Nota del día.</i> Se reprogramaron <b><a href="https://www.notion.so/ejemplo-v" class="ink" style="color:#3b2f2a;text-decoration:none;">Pagar Vanti</a></b> <span class="muted" style="color:#8a7b6e;">(del 21 nov al 21 dic)</span> y <b>Pagar Spotify</b> <span class="muted" style="color:#8a7b6e;">(del 12 nov al 12 dic)</span>.</div></td></tr><tr><td class="px" style="padding:32px 40px 36px 40px;"><div class="rule-ink" style="border-top:1px solid #3b2f2a;"></div><table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-top:12px;"><tr><td class="muted" style="font-size:13px;line-height:19px;font-style:italic;color:#8a7b6e;padding-right:12px;">Chulea una tarea para quitarla de esta página.</td><td align="right" valign="top"><a href="https://www.notion.so/1fab41585726474ab6fba763401b3af3" class="accent" style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12px;letter-spacing:0.15em;text-transform:uppercase;color:#a0522d;text-decoration:none;font-weight:700;white-space:nowrap;">Abrir Tareas en Notion &rarr;</a></td></tr></table></td></tr>
+</table>
+</td>
+</tr>
+</table>
 </body>
-
 </html>
