@@ -48,14 +48,14 @@ class NotionClient:
 
     # ------------------------------------------------------------ operations
 
-    def query_database(
+    def query_data_source(
         self,
-        database_id: str,
+        data_source_id: str,
         body: Dict[str, Any],
         filter_properties: Iterable[str] = (),
     ) -> List[Dict[str, Any]]:
-        """Runs a database query and follows has_more / next_cursor."""
-        endpoint = f"databases/{database_id}/query"
+        """Runs a data source query and follows has_more / next_cursor."""
+        endpoint = f"data_sources/{data_source_id}/query"
         query = "&".join(
             f"filter_properties={quote(name)}" for name in filter_properties
         )

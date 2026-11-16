@@ -60,8 +60,9 @@ tasks fall on the 29th to 31st.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `NOTION_API_KEY` | required | Notion integration token |
-| `NOTION_DATABASE_ID` | required | Id of the "Tareas" database |
-| `NOTION_VERSION` | `2022-06-28` | Notion API version (see note below) |
+| `NOTION_DATABASE_ID` | required | Id of the "Tareas" database, used for the default footer link |
+| `NOTION_DATA_SOURCE_ID` | required | Id of the "Tareas" data source, used by the queries (see note below) |
+| `NOTION_VERSION` | `2026-03-11` | Notion API version |
 | `NOTION_BASE_URL` | `https://api.notion.com/v1` | Notion API base URL |
 | `NOTION_DATABASE_FILTER_PROPERTIES` | `Notas,Tarea,Fecha,Área` | Properties returned by the pending query; `Tarea`, `Fecha`, `Notas` and `Área` are always added |
 | `NOTION_TASKS_URL` | `https://www.notion.so/<database id>` | Link in the email footer |
@@ -75,13 +76,20 @@ tasks fall on the 29th to 31st.
 
 `tzdata` is a dependency so time zones do not depend on the Lambda image.
 
-Notion API version: `POST databases/{id}/query` is marked as deprecated
-starting with `2025-09-03` (databases split into data sources), but
-integrations on `2022-06-28` keep working for databases with a single data
-source and no end of life date has been announced. "Tareas" has one data
-source, so the service stays on `2022-06-28`. If someone adds a second data
-source, Notion answers 400 `multiple_data_sources_for_database`; that is the
-signal to migrate to `data_sources/{id}/query`.
+Notion data sources: since API version `2025-09-03` a database is a container
+of one or more data sources, and queries go to
+`POST data_sources/{data_source_id}/query` (the old `databases/{id}/query` is
+deprecated). A database id does not work on that endpoint. To get the data
+source id, open the database in Notion, go to "Manage data sources" and use
+"Copy data source ID", or call the API:
+
+```bash
+curl -s https://api.notion.com/v1/databases/$NOTION_DATABASE_ID \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
+  -H "Notion-Version: 2026-03-11" | jq '.data_sources'
+```
+
+`NOTION_DATABASE_FILTER_PROPERTIES` accepts property names or ids.
 
 ## Local setup
 

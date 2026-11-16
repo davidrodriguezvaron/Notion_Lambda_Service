@@ -12,7 +12,7 @@ from app.infrastructure.notion.client import (
 
 HEADERS = {
     "Authorization": "Bearer key",
-    "Notion-Version": "2022-06-28",
+    "Notion-Version": "2026-03-11",
     "Content-Type": "application/json",
 }
 
@@ -28,11 +28,11 @@ def response(json_body=None, error=None):
 class TestNotionClient(unittest.TestCase):
     def setUp(self):
         self.session = MagicMock()
-        self.client = NotionClient("key", "2022-06-28", session=self.session)
+        self.client = NotionClient("key", "2026-03-11", session=self.session)
 
     def test_requires_api_key(self):
         with self.assertRaises(ValueError):
-            NotionClient("", "2022-06-28", session=self.session)
+            NotionClient("", "2026-03-11", session=self.session)
 
     def test_request_sends_auth_headers_and_timeout(self):
         self.session.request.return_value = response({"id": "123"})
@@ -102,7 +102,7 @@ class TestQueryDatabase(unittest.TestCase):
             response({"results": [3], "has_more": False, "next_cursor": None}),
         ]
 
-        results = self.client.query_database("db", {"filter": {}})
+        results = self.client.query_data_source("db", {"filter": {}})
 
         self.assertEqual(results, [1, 2, 3])
         bodies = self.bodies()
@@ -114,29 +114,29 @@ class TestQueryDatabase(unittest.TestCase):
 
     def test_stops_when_the_cursor_is_missing(self):
         self.session.request.return_value = response({"results": [1], "has_more": True})
-        self.client.query_database("db", {})
+        self.client.query_data_source("db", {})
         self.assertEqual(self.session.request.call_count, 1)
 
     def test_safety_limit_on_pages(self):
         self.session.request.return_value = response(
             {"results": [], "has_more": True, "next_cursor": "x"}
         )
-        self.client.query_database("db", {})
+        self.client.query_data_source("db", {})
         self.assertEqual(self.session.request.call_count, MAX_PAGES)
 
     def test_filter_properties_are_url_encoded(self):
         self.session.request.return_value = response({"results": []})
-        self.client.query_database("db", {}, ["Tarea", "Área"])
+        self.client.query_data_source("db", {}, ["Tarea", "Área"])
         url = self.session.request.call_args.args[1]
         self.assertEqual(
             url,
-            "https://api.notion.com/v1/databases/db/query"
+            "https://api.notion.com/v1/data_sources/db/query"
             "?filter_properties=Tarea&filter_properties=%C3%81rea",
         )
 
     def test_without_filter_properties(self):
         self.session.request.return_value = response({"results": []})
-        self.client.query_database("db", {})
+        self.client.query_data_source("db", {})
         self.assertTrue(self.session.request.call_args.args[1].endswith("/query"))
 
 

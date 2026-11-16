@@ -16,7 +16,7 @@ class TestSettings(unittest.TestCase):
         s = settings()
         self.assertEqual(s.environment, "LOCAL")
         self.assertEqual(s.log_level, "DEBUG")
-        self.assertEqual(s.notion_version, "2022-06-28")
+        self.assertEqual(s.notion_version, "2026-03-11")
         self.assertEqual(s.notion_base_url, "https://api.notion.com/v1")
         self.assertEqual(
             s.notion_filter_properties, ("Notas", "Tarea", "Fecha", "Área")
@@ -66,7 +66,12 @@ class TestSettings(unittest.TestCase):
         message = str(cm.exception)
         self.assertIn("Missing required environment variables", message)
         self.assertIn("NOTION_API_KEY", message)
+        self.assertIn("NOTION_DATA_SOURCE_ID", message)
         self.assertNotIn("SES_SENDER_EMAIL", message)
+
+    def test_data_source_id_is_read_and_trimmed(self):
+        s = settings(NOTION_DATA_SOURCE_ID=" ad1c-51ed ")
+        self.assertEqual(s.notion_data_source_id, "ad1c-51ed")
 
     def test_invalid_timezone(self):
         with self.assertRaises(ConfigurationError) as cm:

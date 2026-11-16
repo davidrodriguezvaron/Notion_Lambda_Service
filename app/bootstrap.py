@@ -31,7 +31,7 @@ def build_send_daily_digest(settings: Settings) -> SendDailyDigest:
             version=settings.notion_version,
             base_url=settings.notion_base_url,
         ),
-        database_id=settings.notion_database_id,
+        data_source_id=settings.notion_data_source_id,
         filter_properties=settings.notion_filter_properties,
     )
     sender = SesEmailSender(
