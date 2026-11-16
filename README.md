@@ -139,32 +139,6 @@ Repository secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `SONAR_TOKEN`, `GH_PAT` (`repo` scope, needed so the automated PR triggers
 workflows).
 
-### Optional: OIDC instead of AWS access keys
-
-GitHub can get short lived AWS credentials without storing keys. It needs an
-IAM role, so it is documented but not enabled:
-
-1. IAM > Identity providers > Add provider > OpenID Connect.
-   Provider URL `https://token.actions.githubusercontent.com`,
-   audience `sts.amazonaws.com`.
-2. IAM > Roles > Create role > Web identity, choose that provider and audience.
-   Trust policy condition:
-   ```json
-   "StringEquals": {
-     "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-     "token.actions.githubusercontent.com:sub": "repo:davidrodriguezvaron/Notion_Lambda_Service:ref:refs/heads/main"
-   }
-   ```
-3. Attach the same permissions the current deploy user has (Lambda update
-   code/configuration, publish/delete layer versions, list/delete function
-   versions).
-4. Save the role ARN as the repository variable `AWS_ROLE_ARN`.
-5. In `deploy-main.yml` add `permissions: { id-token: write, contents: read }`
-   to the job and replace the two key inputs with
-   `role-to-assume: ${{ vars.AWS_ROLE_ARN }}`.
-6. After a successful deploy, delete the `AWS_ACCESS_KEY_ID` and
-   `AWS_SECRET_ACCESS_KEY` secrets and the IAM user's access key.
-
 ## Scripts reference
 
 - `scripts/run_tests.sh`: unit tests with coverage.
