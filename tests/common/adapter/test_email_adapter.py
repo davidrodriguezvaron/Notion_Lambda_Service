@@ -144,7 +144,7 @@ class TestHtml(unittest.TestCase):
         self.assertIn('class="box rail-blue"', content.html)
 
     def test_overdue_cell_red_only_when_needed(self):
-        red_cell = "background-color:#3b1820"
+        red_cell = "background-color:#fee2e2;border:1px solid #fecaca"
         self.assertIn(red_cell, self.html)
         content = self.adapter.build_digest([t("c", "2026-11-16")], TODAY, 3)
         self.assertNotIn(red_cell, content.html)

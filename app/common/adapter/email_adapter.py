@@ -69,7 +69,7 @@ SECTION_EMOJI = {"overdue": "⏰", "today": "📌", "upcoming": "🗓️"}
 # a longer window is shown as a single "Próximas" cell.
 MAX_STRIP_DAYS = 4
 
-INK = "#0f172a"
+INK = "#1e293b"
 MUTED = "#64748b"
 FAINT = "#94a3b8"
 LINE = "#edf0f4"
@@ -304,15 +304,16 @@ class EmailAdapter:
     def _header_html(self, sections: Sections, today: date, upcoming_days: int) -> str:
         strip = self._agenda_strip_html(sections, today, upcoming_days)
         return (
-            '<tr><td class="hero px" style="background-color:#0f172a;'
+            '<tr><td class="hero px" style="background-color:#eef2ff;'
             'border-radius:17px 17px 0 0;padding:30px 32px 28px 32px;">'
-            '<div style="font-size:12px;line-height:16px;font-weight:700;'
-            'letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;">'
-            "Buenos días</div>"
-            '<div class="h1" style="font-size:27px;line-height:33px;font-weight:800;'
-            'letter-spacing:-0.01em;color:#ffffff;margin-top:6px;">'
+            '<div class="hero-eyebrow" style="font-size:12px;line-height:16px;'
+            "font-weight:700;letter-spacing:0.12em;text-transform:uppercase;"
+            'color:#6366f1;">Buenos días</div>'
+            '<div class="h1 hero-title" style="font-size:27px;line-height:33px;'
+            'font-weight:800;letter-spacing:-0.01em;color:#1e1b4b;margin-top:6px;">'
             f"{html.escape(format_long_date(today))}</div>"
-            '<div style="font-size:15px;line-height:22px;color:#cbd5e1;margin-top:8px;">'
+            '<div class="hero-text" style="font-size:15px;line-height:22px;'
+            'color:#4b5563;margin-top:8px;">'
             f"{html.escape(self.greeting_line(sections))}</div>"
             f"{strip}</td></tr>"
         )
@@ -323,14 +324,10 @@ class EmailAdapter:
         """Row of small cells: Vencidas, Hoy and each upcoming day with a count."""
         if not sections.total:
             return ""
-        overdue = len(sections.overdue)
+        # Cell kinds: "red" (overdue > 0), "accent" (today) and "plain".
         cells = [
-            (
-                "Vencidas",
-                overdue,
-                ("#3b1820", "#fca5a5") if overdue else ("#1e293b", "#64748b"),
-            ),
-            ("Hoy", len(sections.today), ("#2563eb", "#ffffff")),
+            ("Vencidas", len(sections.overdue), "red" if sections.overdue else "plain"),
+            ("Hoy", len(sections.today), "accent"),
         ]
         if upcoming_days <= MAX_STRIP_DAYS:
             for offset in range(1, upcoming_days + 1):
@@ -338,32 +335,42 @@ class EmailAdapter:
                 count = sum(
                     1 for t in sections.upcoming if t.when and t.when.day == day
                 )
-                label = "Mañana" if offset == 1 else format_short_date(day)[:3]
-                label = label.capitalize() if offset > 1 else label
-                colors = ("#1e293b", "#ffffff" if count else "#64748b")
-                cells.append(
-                    (f"{label} {day.day}" if offset > 1 else label, count, colors)
+                label = (
+                    "Mañana"
+                    if offset == 1
+                    else f"{format_short_date(day)[:3].capitalize()} {day.day}"
                 )
+                cells.append((label, count, "plain"))
         else:
-            cells.append(("Próximas", len(sections.upcoming), ("#1e293b", "#ffffff")))
+            cells.append(("Próximas", len(sections.upcoming), "plain"))
 
+        styles = {
+            # kind: (cell class, background, border, label color, number color)
+            "red": ("cell-red", "#fee2e2", "#fecaca", "#b91c1c", "#b91c1c"),
+            "accent": ("cell-accent", "#4f46e5", "#4f46e5", "#e0e7ff", "#ffffff"),
+            "plain": ("cell", "#ffffff", "#e0e7ff", "#6b7280", "#1e1b4b"),
+        }
         tds = []
         cell_width = f"{100 // len(cells)}%"
-        for index, (label, count, (bg, fg)) in enumerate(cells):
+        for index, (label, count, kind) in enumerate(cells):
+            cls, bg, border, label_color, number_color = styles[kind]
+            if kind == "plain" and not count:
+                number_color = "#a5b4fc"
             gap = (
                 ""
                 if index == 0
                 else '<td width="6" style="width:6px;font-size:0;">&nbsp;</td>'
             )
-            label_color = "#dbeafe" if bg == "#2563eb" else "#94a3b8"
             tds.append(
-                f'{gap}<td align="center" valign="top" width="{cell_width}" '
-                f'style="width:{cell_width};background-color:{bg};'
+                f'{gap}<td class="{cls}" align="center" valign="top" '
+                f'width="{cell_width}" style="width:{cell_width};'
+                f"background-color:{bg};border:1px solid {border};"
                 'border-radius:12px;padding:10px 4px 11px 4px;">'
-                f'<div style="font-size:11px;line-height:14px;font-weight:700;'
-                f'color:{label_color};white-space:nowrap;">{html.escape(label)}</div>'
-                f'<div class="count" style="font-size:24px;line-height:28px;'
-                f'font-weight:800;color:{fg};margin-top:3px;">{count}</div></td>'
+                f'<div class="{cls}-label" style="font-size:11px;line-height:14px;'
+                f'font-weight:700;color:{label_color};white-space:nowrap;">'
+                f"{html.escape(label)}</div>"
+                f'<div class="count {cls}-num" style="font-size:24px;line-height:28px;'
+                f'font-weight:800;color:{number_color};margin-top:3px;">{count}</div></td>'
             )
         return (
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
@@ -590,7 +597,7 @@ class EmailAdapter:
         if self.notion_tasks_url:
             button = (
                 '<table role="presentation" cellpadding="0" cellspacing="0" border="0">'
-                '<tr><td class="btn" style="background-color:#0f172a;border-radius:10px;">'
+                '<tr><td class="btn" style="background-color:#4f46e5;border-radius:10px;">'
                 f'<a href="{_attr(self.notion_tasks_url)}" class="btn-txt" '
                 'style="display:inline-block;padding:12px 20px;font-size:14px;'
                 'line-height:18px;font-weight:700;color:#ffffff;text-decoration:none;">'
