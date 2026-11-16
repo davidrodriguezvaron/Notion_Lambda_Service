@@ -35,5 +35,6 @@ ARN=$(aws lambda publish-layer-version \
   ${PROFILE_ARGS:+${PROFILE_ARGS[@]}} \
   ${REGION_ARGS:+${REGION_ARGS[@]}})
 
-echo "$ARN" | tee last_layer_arn.txt
-echo "[publish-layer] Done: $ARN"
+echo "$ARN" > last_layer_arn.txt
+# Do not print the full ARN: it contains the AWS account ID and CI logs are public
+echo "[publish-layer] Done: ${LAYER_NAME}:${ARN##*:} (ARN saved to last_layer_arn.txt)"

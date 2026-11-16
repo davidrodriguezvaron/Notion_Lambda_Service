@@ -22,6 +22,8 @@ class TestLambdaFunction(unittest.TestCase):
         with patch.dict(
             "os.environ",
             {
+                "NOTION_API_KEY": "test_api_key",
+                "NOTION_DATABASE_ID": "test_database_id",
                 "SES_SENDER_EMAIL": "sender@example.com",
                 "SES_RECEIVER_EMAIL": "receiver@example.com",
             },
@@ -68,6 +70,8 @@ class TestLambdaFunction(unittest.TestCase):
         with patch.dict(
             "os.environ",
             {
+                "NOTION_API_KEY": "test_api_key",
+                "NOTION_DATABASE_ID": "test_database_id",
                 "SES_SENDER_EMAIL": "sender@example.com",
                 "SES_RECEIVER_EMAIL": "receiver@example.com",
             },

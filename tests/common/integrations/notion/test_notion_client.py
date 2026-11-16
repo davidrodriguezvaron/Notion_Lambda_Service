@@ -61,6 +61,7 @@ class TestNotionClient(unittest.TestCase):
                 "Content-Type": "application/json",
             },
             json=None,
+            timeout=(5, 30),
         )
 
     @patch("requests.request")
@@ -75,6 +76,7 @@ class TestNotionClient(unittest.TestCase):
             "https://api.notion.com/v1/databases",
             headers=self.client.headers,
             json=None,
+            timeout=(5, 30),
         )
 
     @patch("requests.request")
@@ -90,6 +92,7 @@ class TestNotionClient(unittest.TestCase):
             "https://api.notion.com/v1/pages",
             headers=self.client.headers,
             json=payload,
+            timeout=(5, 30),
         )
 
     @patch("requests.request")
@@ -105,6 +108,7 @@ class TestNotionClient(unittest.TestCase):
             "https://api.notion.com/v1/pages/123",
             headers=self.client.headers,
             json=payload,
+            timeout=(5, 30),
         )
 
     @patch("requests.request")
@@ -119,6 +123,7 @@ class TestNotionClient(unittest.TestCase):
             "https://api.notion.com/v1/blocks/123",
             headers=self.client.headers,
             json=None,
+            timeout=(5, 30),
         )
 
     @patch("requests.request")

@@ -117,7 +117,7 @@ The project uses GitHub Actions for Continuous Integration and Deployment.
 
 3.  **Deploy Main (`.github/workflows/deploy-main.yml`)**:
     - Triggers on Push to `main` (after merge).
-    - Deploys to AWS using `scripts/deploy_all.sh` (skips tests).
+    - Runs the tests in a separate job (without AWS credentials), then deploys to AWS using `scripts/deploy_all.sh`.
 
 ### Configuration
 
@@ -173,9 +173,10 @@ If you're using Gmail, you can use a Google Apps Script to automatically delete 
 1.  Go to [Google Apps Script](https://script.google.com/).
 2.  Create a new project.
 3.  Paste the code from `scripts/helpers/gmail_auto_delete.js`.
-4.  Set up a time-driven trigger to run the `autoDeleteNotionEmails` function daily.
+4.  Set `SENDER_EMAIL` at the top of the script to your `SES_SENDER_EMAIL` address (the script deletes nothing until you do).
+5.  Set up a time-driven trigger to run the `autoDeleteNotionEmails` function daily.
 
-The script searches for emails with "Task List" in the subject that are older than 2 days and moves them to trash.
+The script searches for emails from that sender with "Task List" in the subject that are older than 2 days and moves them to trash.
 
 ![Sample Email](assets/sample_email.png)
 

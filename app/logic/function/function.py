@@ -5,7 +5,6 @@ from app.common.environment.environment_handler import environment_handler
 from app.common.integrations.notion.task_repository import TaskRepository
 from app.common.logger.logger import get_logger
 
-
 logger = get_logger(__name__)
 
 

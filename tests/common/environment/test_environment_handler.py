@@ -26,6 +26,8 @@ class TestEnvironmentHandler(unittest.TestCase):
     @patch.dict(
         "os.environ",
         {
+            "NOTION_API_KEY": "test_api_key",
+            "NOTION_DATABASE_ID": "test_database_id",
             "SES_SENDER_EMAIL": "sender@example.com",
             "SES_RECEIVER_EMAIL": "receiver@example.com",
         },
@@ -48,10 +50,14 @@ class TestEnvironmentHandler(unittest.TestCase):
 
             self.assertIn("Missing required environment variables", str(cm.exception))
             self.assertIn("SES_SENDER_EMAIL", str(cm.exception))
+            self.assertIn("NOTION_API_KEY", str(cm.exception))
+            self.assertIn("NOTION_DATABASE_ID", str(cm.exception))
 
     @patch.dict(
         "os.environ",
         {
+            "NOTION_API_KEY": "test_api_key",
+            "NOTION_DATABASE_ID": "test_database_id",
             "SES_SENDER_EMAIL": "sender@example.com",
             "SES_RECEIVER_EMAIL": "receiver@example.com",
         },
