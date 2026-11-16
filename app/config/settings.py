@@ -5,6 +5,7 @@ Settings is an immutable object built at startup and passed to whoever needs
 it, so no other module reads os.environ directly.
 """
 
+import logging
 import os
 from dataclasses import dataclass
 from typing import Mapping, Optional, Tuple
@@ -77,8 +78,8 @@ class Settings:
         database_id = get("NOTION_DATABASE_ID")
         return cls(
             environment=environment,
-            log_level=get(
-                "LOG_LEVEL", "INFO" if environment == "PRODUCTION" else "DEBUG"
+            log_level=_log_level(
+                get("LOG_LEVEL", "INFO" if environment == "PRODUCTION" else "DEBUG")
             ),
             notion_api_key=get("NOTION_API_KEY"),
             notion_version=get("NOTION_VERSION", "2022-06-28"),
@@ -108,6 +109,13 @@ def _environment(explicit: str, lambda_name: str) -> str:
 
 def _split(value: str) -> Tuple[str, ...]:
     return tuple(part.strip() for part in value.split(",") if part.strip())
+
+
+def _log_level(name: str) -> str:
+    level = name.upper()
+    if not isinstance(logging.getLevelName(level), int):
+        raise ConfigurationError(f"Invalid LOG_LEVEL '{name}'")
+    return level
 
 
 def _timezone(name: str) -> ZoneInfo:

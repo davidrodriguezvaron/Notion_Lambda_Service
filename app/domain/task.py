@@ -1,9 +1,12 @@
 """Task entity and its due date, independent of Notion or the email."""
 
+import logging
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Optional
 from zoneinfo import ZoneInfo
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -28,6 +31,7 @@ class DueDate:
                 return cls(day=date.fromisoformat(value))
             parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
         except ValueError:
+            logger.warning(f"Could not parse due date '{value}'; shown as undated")
             return None
         if parsed.tzinfo is None:
             parsed = parsed.replace(tzinfo=tz)

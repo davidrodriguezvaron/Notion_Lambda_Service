@@ -51,6 +51,10 @@ class TestToTask(unittest.TestCase):
         )
         self.assertEqual(result, Task(id="x", title="", url=None))
 
+    def test_page_without_id_fails_fast(self):
+        with self.assertRaises(KeyError):
+            to_task({"properties": {}})
+
 
 if __name__ == "__main__":
     unittest.main()

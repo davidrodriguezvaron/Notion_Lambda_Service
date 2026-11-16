@@ -24,6 +24,10 @@ class DigestOptions:
     upcoming_days: int = 3
     send_empty_digest: bool = False
 
+    def __post_init__(self):
+        if self.upcoming_days < 0:
+            raise ValueError("upcoming_days must be zero or positive")
+
 
 @dataclass(frozen=True)
 class DigestResult:

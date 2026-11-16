@@ -9,7 +9,7 @@ from app.infrastructure.notion import schema
 def to_task(page: Dict[str, Any]) -> Task:
     properties = page.get("properties", {})
     return Task(
-        id=page.get("id"),
+        id=page["id"],
         url=page.get("url"),
         title=_rich_text(properties, schema.TITLE, "title").strip(),
         due=_date_start(properties, schema.DUE),

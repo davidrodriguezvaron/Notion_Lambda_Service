@@ -1,6 +1,7 @@
 """AWS Lambda entry point: load settings, run the daily digest, answer."""
 
 import logging
+from functools import lru_cache
 
 from app.application.send_daily_digest import DigestResult
 from app.bootstrap import build_send_daily_digest
@@ -30,11 +31,18 @@ def lambda_handler(event, context):
     logger.info(f"Processing request in {settings.environment} environment")
 
     try:
-        result = build_send_daily_digest(settings).execute()
+        result = cached_use_case(settings).execute()
     except Exception as e:
         logger.error(f"Error processing request: {e}")
         raise
     return to_response(result, settings.environment)
+
+
+@lru_cache(maxsize=1)
+def cached_use_case(settings: Settings):
+    """Built once per container (and per settings), so warm invocations reuse
+    the SES client and the Notion HTTP session."""
+    return build_send_daily_digest(settings)
 
 
 def to_response(result: DigestResult, environment: str) -> dict:

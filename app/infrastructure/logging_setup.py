@@ -4,6 +4,9 @@ import logging
 import sys
 
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+# Their DEBUG output is noisy and botocore logs signed request headers
+# (Authorization, X-Amz-Security-Token), so they never go below WARNING.
+QUIET_LOGGERS = ("boto3", "botocore", "s3transfer", "urllib3")
 
 
 def configure_logging(level: str) -> None:
@@ -19,3 +22,5 @@ def configure_logging(level: str) -> None:
         root.addHandler(handler)
     for handler in root.handlers:
         handler.setLevel(level)
+    for name in QUIET_LOGGERS:
+        logging.getLogger(name).setLevel(max(logging.WARNING, root.level))

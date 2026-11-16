@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from app.application.send_daily_digest import DigestResult
-from app.lambda_function import lambda_handler, to_response
+from app.lambda_function import cached_use_case, lambda_handler, to_response
 from tests.fakes import BASE_ENV
 
 # 11 p. m. on Monday 16 Nov in Bogota (already 17 Nov in UTC).
@@ -45,6 +45,9 @@ class FakeNotionSession:
 
 
 class TestLambdaHandlerEndToEnd(unittest.TestCase):
+    def setUp(self):
+        cached_use_case.cache_clear()
+
     def run_handler(self, session, **env):
         self.ses = MagicMock()
         with patch.dict(os.environ, dict(BASE_ENV, **env), clear=True), patch(
@@ -105,6 +108,18 @@ class TestLambdaHandlerEndToEnd(unittest.TestCase):
 
 
 class TestLambdaHandlerFailures(unittest.TestCase):
+    def setUp(self):
+        cached_use_case.cache_clear()
+
+    def test_use_case_is_reused_across_warm_invocations(self):
+        use_case = MagicMock()
+        with patch.dict(os.environ, BASE_ENV, clear=True), patch(
+            "app.lambda_function.build_send_daily_digest", return_value=use_case
+        ) as build, patch("app.lambda_function.to_response"):
+            lambda_handler({}, None)
+            lambda_handler({}, None)
+        build.assert_called_once()
+
     def test_invalid_environment_fails_the_invocation(self):
         with patch.dict(os.environ, {}, clear=True), patch(
             "app.config.settings.os.path.exists", return_value=False

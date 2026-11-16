@@ -27,6 +27,10 @@ class TestPaperHtmlRenderer(unittest.TestCase):
         self.assertNotIn("box-shadow", self.html)
         self.assertNotIn("{{", self.html)
 
+    def test_task_text_is_not_treated_as_a_placeholder(self):
+        html = render(agenda(task("Ver {{dark_area_css}}", "2026-11-16")))
+        self.assertIn("Ver {{dark_area_css}}", html)
+
     def test_masthead_and_dateline(self):
         self.assertIn("Tareas · Edición diaria", self.html)
         self.assertIn("Nº 320", self.html)

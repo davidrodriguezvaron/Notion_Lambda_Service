@@ -1,6 +1,7 @@
 """Renders the digest as an email safe HTML page in the "paper" style."""
 
 import html
+import re
 from datetime import date
 from functools import lru_cache
 from pathlib import Path
@@ -28,6 +29,7 @@ from app.presentation.email.theme import (
 )
 
 TEMPLATE_PATH = Path(__file__).parent / "template.html"
+PLACEHOLDER = re.compile(r"\{\{\w+\}\}")
 
 
 @lru_cache(maxsize=1)
@@ -61,10 +63,10 @@ class PaperHtmlRenderer:
             "{{body}}": "".join(parts),
             "{{dark_area_css}}": dark_area_css(),
         }
-        result = load_template()
-        for key, value in replacements.items():
-            result = result.replace(key, value)
-        return result
+        # One pass, so task text inserted into the body is never substituted.
+        return PLACEHOLDER.sub(
+            lambda m: replacements.get(m.group(0), m.group(0)), load_template()
+        )
 
     def _footer(self) -> str:
         link = ""

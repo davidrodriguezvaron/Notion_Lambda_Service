@@ -27,6 +27,14 @@ class TestConfigureLogging(unittest.TestCase):
         self.assertEqual(self.root.handlers, [handler])
         self.assertEqual(handler.level, logging.WARNING)
 
+    def test_third_party_loggers_stay_at_warning(self):
+        configure_logging("DEBUG")
+        for name in ("boto3", "botocore", "urllib3"):
+            with self.subTest(name=name):
+                self.assertEqual(logging.getLogger(name).level, logging.WARNING)
+        configure_logging("ERROR")
+        self.assertEqual(logging.getLogger("botocore").level, logging.ERROR)
+
 
 if __name__ == "__main__":
     unittest.main()

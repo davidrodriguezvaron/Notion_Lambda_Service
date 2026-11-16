@@ -31,6 +31,10 @@ class TestDueDate(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertIsNone(DueDate.parse(value, BOGOTA))
 
+    def test_invalid_value_is_logged(self):
+        with self.assertLogs("app.domain.task", level="WARNING"):
+            DueDate.parse("no-es-fechaT", BOGOTA)
+
 
 class TestFormatTime(unittest.TestCase):
     def test_noon_and_midnight(self):

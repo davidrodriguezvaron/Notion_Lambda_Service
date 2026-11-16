@@ -50,6 +50,11 @@ class TestSettings(unittest.TestCase):
         self.assertEqual(settings(AWS_LAMBDA_FUNCTION_NAME="fn").log_level, "INFO")
         self.assertEqual(settings(ENVIRONMENT="TEST").environment, "TEST")
         self.assertEqual(settings(LOG_LEVEL="WARNING").log_level, "WARNING")
+        self.assertEqual(settings(LOG_LEVEL=" info ").log_level, "INFO")
+
+    def test_invalid_log_level(self):
+        with self.assertRaises(ConfigurationError):
+            settings(LOG_LEVEL="verbose")
 
     def test_upcoming_days_fallbacks(self):
         self.assertEqual(settings(UPCOMING_DAYS="muchos").upcoming_days, 3)

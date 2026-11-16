@@ -50,6 +50,10 @@ class TestSendDailyDigest(unittest.TestCase):
         self.run_digest(repo, upcoming_days=3)
         self.assertEqual(repo.pending_until, date(2026, 11, 19))
 
+    def test_negative_window_is_rejected(self):
+        with self.assertRaises(ValueError):
+            DigestOptions(TZ, -1)
+
     def test_empty_day_succeeds_without_email(self):
         result = self.run_digest(FakeTaskRepository())
         self.assertFalse(result.email_sent)

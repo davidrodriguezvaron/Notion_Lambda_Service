@@ -39,15 +39,16 @@ def build_send_daily_digest(settings: Settings) -> SendDailyDigest:
         sender=settings.ses_sender,
         recipients=[settings.ses_receiver],
     )
+    options = DigestOptions(
+        timezone=settings.timezone,
+        upcoming_days=settings.upcoming_days,
+        send_empty_digest=settings.send_empty_digest,
+    )
     return SendDailyDigest(
         repository=repository,
         reopen_recurring=ReopenRecurringTasks(repository),
         composer=build_composer(settings.notion_tasks_url),
         sender=sender,
-        clock=ZonedClock(settings.timezone),
-        options=DigestOptions(
-            timezone=settings.timezone,
-            upcoming_days=settings.upcoming_days,
-            send_empty_digest=settings.send_empty_digest,
-        ),
+        clock=ZonedClock(options.timezone),
+        options=options,
     )
