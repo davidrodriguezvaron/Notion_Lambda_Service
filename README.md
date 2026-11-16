@@ -167,17 +167,51 @@ with `Tareas:` (current format) or `Task List:` (old format).
    address (the script deletes nothing until you do).
 4. Add a daily time driven trigger for `autoDeleteNotionEmails`.
 
+## Architecture
+
+Light layers with dependencies pointing inward:
+
+```
+domain  <-  application  <-  infrastructure / presentation  <-  bootstrap
+```
+
+- `app/domain/`: plain Python, no I/O.
+  - `task.py`: `Task` and `DueDate` (parsing in the configured time zone).
+  - `recurrence.py`: intervals and the "one interval from its own date" rule.
+  - `agenda.py`: splits tasks into overdue, today and upcoming.
+- `app/application/`: use cases and the interfaces they need.
+  - `ports.py`: `TaskRepository`, `DigestComposer`, `EmailSender`, `Clock`.
+  - `reopen_recurring_tasks.py`: reopens done recurring tasks (idempotent).
+  - `send_daily_digest.py`: the daily run (reopen, read, compose, send).
+  - `errors.py`: repository errors the use cases understand.
+  - `clock.py`: "today" in the user's time zone.
+- `app/infrastructure/`: adapters to the outside world.
+  - `notion/client.py`: HTTP, auth, errors and pagination.
+  - `notion/task_mapper.py`: Notion page to `Task`.
+  - `notion/task_repository.py`: implements `TaskRepository`.
+  - `notion/schema.py`: property and status names of the "Tareas" database.
+  - `ses/email_sender.py`: implements `EmailSender`.
+  - `logging_setup.py`: log level and format.
+- `app/presentation/email/`: the digest email.
+  - `composer.py`: subject plus HTML and text bodies.
+  - `html_renderer.py`, `html_task_list.py`, `html_primitives.py`: "paper" HTML.
+  - `text_renderer.py`: plain text alternative.
+  - `copy.py`: Spanish wording; `spanish_dates.py`: dates without system locale.
+  - `theme.py`: colors; `linkify.py`: links in notes; `template.html`: layout.
+- `app/config/settings.py`: immutable `Settings` read once from the environment.
+- `app/bootstrap.py`: composition root, the only place that builds concrete
+  classes.
+- `app/lambda_function.py`: entry point (`app.lambda_function.lambda_handler`).
+
+To change where tasks come from or how the email is sent, write a new class
+that follows the matching port and wire it in `bootstrap.py`; the use cases
+do not change.
+
 ## Project structure
 
-- `app/lambda_function.py`: Lambda entrypoint.
-- `app/logic/function/`: main flow (recurrence, query, email).
-- `app/logic/recurrence/`: recurring task rules.
-- `app/common/adapter/email_adapter.py`: subject, HTML and plain text.
-- `app/common/integrations/notion/`: Notion client and task repository.
-- `app/common/integrations/ses/`: SES client.
-- `app/common/utils/dates.py`: time zone and Spanish date helpers.
-- `app/resources/email_template.html`: email layout.
+- `app/`: application code (see Architecture).
 - `assets/`: sample email (HTML and PNG).
 - `scripts/`: build, deploy, test and helper scripts.
-- `tests/`: unit tests (pytest).
+- `tests/`: unit tests (pytest), mirroring `app/`; `tests/fakes.py` has
+  in-memory doubles for the ports.
 - `requirements.txt` / `requirements-dev.txt`: pinned dependencies.
