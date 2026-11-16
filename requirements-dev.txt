@@ -3,4 +3,4 @@ pytest-cov
 black
 flake8
 requests==2.34.2
-boto3==1.42.3
+boto3==1.44.3
