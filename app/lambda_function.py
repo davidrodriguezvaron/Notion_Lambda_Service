@@ -22,7 +22,7 @@ def lambda_handler(event, context):
     try:
         settings = Settings.from_env()
     except ValueError as e:
-        logger.error(f"Environment validation failed: {e}")
+        logger.exception(f"Environment validation failed: {e}")
         raise
 
     configure_logging(settings.log_level)
@@ -33,7 +33,7 @@ def lambda_handler(event, context):
     try:
         result = cached_use_case(settings).execute()
     except Exception as e:
-        logger.error(f"Error processing request: {e}")
+        logger.exception(f"Error processing request: {e}")
         raise
     return to_response(result, settings.environment)
 

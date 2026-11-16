@@ -107,10 +107,10 @@ class NotionClient:
         except requests.exceptions.HTTPError as e:
             status = e.response.status_code if e.response is not None else None
             detail = e.response.text if e.response is not None else str(e)
-            logger.error(f"Notion API request failed: {e}")
+            logger.exception(f"Notion API request failed: {e}")
             raise NotionApiError(
                 f"Notion API request failed: {detail}", status_code=status
             ) from e
         except requests.exceptions.RequestException as e:
-            logger.error(f"Notion API request failed: {e}")
+            logger.exception(f"Notion API request failed: {e}")
             raise NotionApiError(f"Notion API connection error: {e}") from e
