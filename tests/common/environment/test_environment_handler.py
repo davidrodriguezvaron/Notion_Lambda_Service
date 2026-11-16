@@ -62,6 +62,62 @@ class TestEnvironmentHandler(unittest.TestCase):
             ("sender@example.com", "receiver@example.com"),
         )
 
+    def test_new_variables_defaults(self):
+        with patch.dict("os.environ", clear=True):
+            self.assertEqual(environment_handler.timezone_name, "America/Bogota")
+            self.assertEqual(str(environment_handler.timezone), "America/Bogota")
+            self.assertFalse(environment_handler.send_empty_digest)
+            self.assertEqual(environment_handler.upcoming_days, 3)
+            self.assertEqual(environment_handler.notion_tasks_url, "")
+            self.assertEqual(
+                environment_handler.notion_database_filter_properties,
+                "Notas,Tarea,Fecha,Área",
+            )
+
+    @patch.dict(
+        "os.environ",
+        {
+            "TIMEZONE": "Europe/Madrid",
+            "SEND_EMPTY_DIGEST": "TRUE",
+            "UPCOMING_DAYS": "5",
+            "NOTION_TASKS_URL": " https://www.notion.so/x ",
+        },
+    )
+    def test_new_variables_custom(self):
+        self.assertEqual(environment_handler.timezone_name, "Europe/Madrid")
+        self.assertTrue(environment_handler.send_empty_digest)
+        self.assertEqual(environment_handler.upcoming_days, 5)
+        self.assertEqual(
+            environment_handler.notion_tasks_url, "https://www.notion.so/x"
+        )
+
+    @patch.dict("os.environ", {"UPCOMING_DAYS": "muchos"})
+    def test_upcoming_days_invalid_falls_back(self):
+        self.assertEqual(environment_handler.upcoming_days, 3)
+
+    @patch.dict("os.environ", {"UPCOMING_DAYS": "-2"})
+    def test_upcoming_days_never_negative(self):
+        self.assertEqual(environment_handler.upcoming_days, 0)
+
+    def test_notion_tasks_url_from_database_id(self):
+        with patch.dict("os.environ", {"NOTION_DATABASE_ID": "1fab-4158"}, clear=True):
+            self.assertEqual(
+                environment_handler.notion_tasks_url, "https://www.notion.so/1fab4158"
+            )
+
+    @patch.dict(
+        "os.environ",
+        {
+            "SES_SENDER_EMAIL": "a@example.com",
+            "SES_RECEIVER_EMAIL": "b@example.com",
+            "TIMEZONE": "America/Nowhere",
+        },
+    )
+    def test_validate_rejects_invalid_timezone(self):
+        with self.assertRaises(ValueError) as cm:
+            environment_handler.validate()
+        self.assertIn("Invalid TIMEZONE", str(cm.exception))
+
 
 if __name__ == "__main__":
     unittest.main()
