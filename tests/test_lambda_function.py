@@ -1,85 +1,136 @@
+import os
 import unittest
-from unittest.mock import Mock, patch
-from app.lambda_function import lambda_handler
+from datetime import datetime, timezone
+from unittest.mock import MagicMock, patch
+
+from app.application.send_daily_digest import DigestResult
+from app.lambda_function import lambda_handler, to_response
+from tests.fakes import BASE_ENV
+
+# 11 p. m. on Monday 16 Nov in Bogota (already 17 Nov in UTC).
+LATE_NIGHT_UTC = datetime(2026, 11, 17, 4, 0, tzinfo=timezone.utc)
 
 
-class TestLambdaFunction(unittest.TestCase):
+def page(page_id, title, due, recurrence=None):
+    properties = {
+        "Tarea": {"title": [{"plain_text": title}]},
+        "Fecha": {"date": {"start": due}},
+    }
+    if recurrence:
+        properties["Recurrencia"] = {"select": {"name": recurrence}}
+    return {
+        "id": page_id,
+        "url": f"https://www.notion.so/{page_id}",
+        "properties": properties,
+    }
 
-    @patch("app.lambda_function.get_notion_client")
-    @patch("app.lambda_function.NotionLambda")
-    def test_lambda_handler(self, mock_notion_lambda_class, mock_get_notion_client):
-        # Setup
-        mock_client = Mock()
-        mock_get_notion_client.return_value = mock_client
-        mock_instance = mock_notion_lambda_class.return_value
-        expected_response = {"statusCode": 200, "body": "Success"}
-        mock_instance.notion_lambda_function.return_value = expected_response
 
-        event = {}
-        context = Mock()
+class FakeNotionSession:
+    """Answers Notion HTTP calls: done recurring tasks vs pending tasks."""
 
-        # Execute
-        with patch.dict(
-            "os.environ",
-            {
-                "NOTION_API_KEY": "test_api_key",
-                "NOTION_DATABASE_ID": "test_database_id",
-                "SES_SENDER_EMAIL": "sender@example.com",
-                "SES_RECEIVER_EMAIL": "receiver@example.com",
-            },
+    def __init__(self, pending=(), done=()):
+        self.pending, self.done = list(pending), list(done)
+        self.calls = []
+
+    def request(self, method, url, headers, json, timeout):
+        self.calls.append((method, url, json))
+        response = MagicMock()
+        if method == "PATCH":
+            response.json.return_value = {}
+        elif "'Done'" in str(json["filter"]):
+            response.json.return_value = {"results": self.done, "has_more": False}
+        else:
+            response.json.return_value = {"results": self.pending, "has_more": False}
+        return response
+
+
+class TestLambdaHandlerEndToEnd(unittest.TestCase):
+    def run_handler(self, session, **env):
+        self.ses = MagicMock()
+        with patch.dict(os.environ, dict(BASE_ENV, **env), clear=True), patch(
+            "app.bootstrap.boto3.client", return_value=self.ses
+        ), patch(
+            "app.infrastructure.notion.client.requests.Session", return_value=session
+        ), patch(
+            "app.application.clock.utc_now", return_value=LATE_NIGHT_UTC
         ):
-            response = lambda_handler(event, context)
+            return lambda_handler({}, None)
 
-        # Verify
-        mock_get_notion_client.assert_called_once()
-        mock_notion_lambda_class.assert_called_once_with(mock_client)
-        mock_instance.notion_lambda_function.assert_called_once_with()
-        self.assertEqual(response, expected_response)
+    def test_sends_the_digest_using_the_local_date(self):
+        session = FakeNotionSession(pending=[page("1", "Pagar ENEL", "2026-11-16")])
+        response = self.run_handler(session)
 
-    @patch("app.lambda_function.environment_handler")
-    def test_lambda_handler_validation_failure(self, mock_env_handler):
-        """Test lambda_handler when environment validation fails"""
-        # Setup
-        mock_env_handler.validate.side_effect = ValueError("Missing required vars")
-        event = {}
-        context = Mock()
+        self.assertEqual(response["statusCode"], 200)
+        self.assertTrue(response["body"]["email_sent"])
+        self.assertEqual(response["body"]["tasks"], 1)
+        email = self.ses.send_email.call_args.kwargs
+        # Due on 16 Nov is "today" at 11 p. m. in Bogota, not overdue.
+        self.assertEqual(email["Message"]["Subject"]["Data"], "Tareas: 1 hoy")
+        self.assertEqual(email["Source"], "sender@example.com")
+        self.assertEqual(
+            email["Destination"], {"ToAddresses": ["receiver@example.com"]}
+        )
+        self.assertIn("HOY (1)", email["Message"]["Body"]["Text"]["Data"])
+        pending_query = session.calls[-1][2]
+        self.assertEqual(
+            pending_query["filter"]["and"][1]["date"]["on_or_before"], "2026-11-20"
+        )
 
-        # Execute and verify
-        with self.assertRaises(ValueError) as cm:
-            lambda_handler(event, context)
+    def test_empty_day_succeeds_without_email(self):
+        response = self.run_handler(FakeNotionSession())
+        self.assertFalse(response["body"]["email_sent"])
+        self.assertIn("email skipped", response["body"]["message"])
+        self.ses.send_email.assert_not_called()
 
-        self.assertIn("Missing required vars", str(cm.exception))
-        mock_env_handler.validate.assert_called_once()
+    def test_empty_day_sends_a_short_email_when_enabled(self):
+        response = self.run_handler(FakeNotionSession(), SEND_EMPTY_DIGEST="true")
+        self.assertTrue(response["body"]["email_sent"])
+        subject = self.ses.send_email.call_args.kwargs["Message"]["Subject"]["Data"]
+        self.assertEqual(subject, "Tareas: nada pendiente hoy")
 
-    @patch("app.lambda_function.get_notion_client")
-    @patch("app.lambda_function.NotionLambda")
-    def test_lambda_handler_exception_handling(
-        self, mock_notion_lambda_class, mock_get_notion_client
-    ):
-        """Test lambda_handler re-raises exceptions to mark Lambda as failed"""
-        # Setup
-        mock_client = Mock()
-        mock_get_notion_client.return_value = mock_client
-        mock_instance = mock_notion_lambda_class.return_value
-        mock_instance.notion_lambda_function.side_effect = Exception("Test error")
+    def test_recurring_done_task_is_reopened_and_reported(self):
+        session = FakeNotionSession(
+            done=[page("9", "Pagar ENEL", "2026-11-14", recurrence="Mensual")]
+        )
+        response = self.run_handler(session)
 
-        event = {}
-        context = Mock()
+        patch_call = next(c for c in session.calls if c[0] == "PATCH")
+        self.assertTrue(patch_call[1].endswith("/pages/9"))
+        self.assertEqual(
+            patch_call[2]["properties"]["Fecha"]["date"]["start"], "2026-12-14"
+        )
+        self.assertEqual(response["body"]["rescheduled"], 1)
+        text = self.ses.send_email.call_args.kwargs["Message"]["Body"]["Text"]["Data"]
+        self.assertIn("Pagar ENEL: del 14 nov al 14 dic", text)
 
-        # Execute and verify exception is re-raised
-        with patch.dict(
-            "os.environ",
-            {
-                "NOTION_API_KEY": "test_api_key",
-                "NOTION_DATABASE_ID": "test_database_id",
-                "SES_SENDER_EMAIL": "sender@example.com",
-                "SES_RECEIVER_EMAIL": "receiver@example.com",
-            },
+
+class TestLambdaHandlerFailures(unittest.TestCase):
+    def test_invalid_environment_fails_the_invocation(self):
+        with patch.dict(os.environ, {}, clear=True), patch(
+            "app.config.settings.os.path.exists", return_value=False
         ):
-            with self.assertRaises(Exception) as cm:
-                lambda_handler(event, context)
+            with self.assertRaises(ValueError) as cm:
+                lambda_handler({}, None)
+        self.assertIn("Missing required environment variables", str(cm.exception))
 
-        self.assertIn("Test error", str(cm.exception))
+    def test_errors_are_re_raised(self):
+        use_case = MagicMock()
+        use_case.execute.side_effect = RuntimeError("Test error")
+        with patch.dict(os.environ, BASE_ENV, clear=True), patch(
+            "app.lambda_function.build_send_daily_digest", return_value=use_case
+        ):
+            with self.assertRaises(RuntimeError):
+                lambda_handler({}, None)
+
+
+class TestToResponse(unittest.TestCase):
+    def test_sent(self):
+        body = to_response(DigestResult(True, "Tareas: 1 hoy", 1, 0), "TEST")["body"]
+        self.assertEqual(
+            body["message"],
+            "Process executed successfully from NotionLambda in TEST environment. "
+            "Email sent: Tareas: 1 hoy",
+        )
 
 
 if __name__ == "__main__":
