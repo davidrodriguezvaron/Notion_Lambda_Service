@@ -55,11 +55,11 @@ class ReopenRecurringTasks:
             try:
                 moved = self._reopen(task)
             except TaskStorePermissionError as e:
-                logger.error(f"{PERMISSION_HINT} ({e})")
+                logger.exception(f"{PERMISSION_HINT} ({e})")
                 result.warnings.append(PERMISSION_HINT)
                 break
             except TaskStoreError as e:
-                logger.error(f"Could not reschedule '{task.title}': {e}")
+                logger.exception(f"Could not reschedule '{task.title}': {e}")
                 result.warnings.append(f'No se pudo reprogramar "{task.title}".')
                 continue
             if moved:

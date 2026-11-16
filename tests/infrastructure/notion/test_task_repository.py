@@ -16,12 +16,14 @@ PAGE = {"id": "1", "properties": {"Tarea": {"title": [{"plain_text": "Pagar ENEL
 class TestNotionTaskRepository(unittest.TestCase):
     def setUp(self):
         self.client = Mock()
-        self.client.query_database.return_value = [PAGE]
+        self.client.query_data_source.return_value = [PAGE]
         self.repo = NotionTaskRepository(self.client, "db", ("Notas", "Tarea", "Fecha"))
 
     def query(self):
-        database_id, body, filter_properties = self.client.query_database.call_args.args
-        return database_id, body, filter_properties
+        data_source_id, body, filter_properties = (
+            self.client.query_data_source.call_args.args
+        )
+        return data_source_id, body, filter_properties
 
     def test_find_pending_maps_pages_to_tasks(self):
         tasks = self.repo.find_pending(date(2026, 11, 19))
@@ -29,9 +31,9 @@ class TestNotionTaskRepository(unittest.TestCase):
 
     def test_find_pending_filters_status_and_date_with_one_day_margin(self):
         self.repo.find_pending(date(2026, 11, 19))
-        database_id, body, _ = self.query()
+        data_source_id, body, _ = self.query()
 
-        self.assertEqual(database_id, "db")
+        self.assertEqual(data_source_id, "db")
         statuses, due = body["filter"]["and"]
         self.assertEqual(
             [f["status"]["equals"] for f in statuses["or"]],
@@ -92,7 +94,7 @@ class TestNotionTaskRepository(unittest.TestCase):
                     self.repo.reopen("p", "2026-12-21")
 
     def test_query_errors_are_translated_too(self):
-        self.client.query_database.side_effect = NotionApiError("x", 400)
+        self.client.query_data_source.side_effect = NotionApiError("x", 400)
         with self.assertRaises(TaskStoreSchemaError):
             self.repo.find_done_recurring()
 

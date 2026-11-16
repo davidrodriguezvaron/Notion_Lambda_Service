@@ -48,14 +48,14 @@ class NotionClient:
 
     # ------------------------------------------------------------ operations
 
-    def query_database(
+    def query_data_source(
         self,
-        database_id: str,
+        data_source_id: str,
         body: Dict[str, Any],
         filter_properties: Iterable[str] = (),
     ) -> List[Dict[str, Any]]:
-        """Runs a database query and follows has_more / next_cursor."""
-        endpoint = f"databases/{database_id}/query"
+        """Runs a data source query and follows has_more / next_cursor."""
+        endpoint = f"data_sources/{data_source_id}/query"
         query = "&".join(
             f"filter_properties={quote(name)}" for name in filter_properties
         )
@@ -107,10 +107,10 @@ class NotionClient:
         except requests.exceptions.HTTPError as e:
             status = e.response.status_code if e.response is not None else None
             detail = e.response.text if e.response is not None else str(e)
-            logger.error(f"Notion API request failed: {e}")
+            logger.exception(f"Notion API request failed: {e}")
             raise NotionApiError(
                 f"Notion API request failed: {detail}", status_code=status
             ) from e
         except requests.exceptions.RequestException as e:
-            logger.error(f"Notion API request failed: {e}")
+            logger.exception(f"Notion API request failed: {e}")
             raise NotionApiError(f"Notion API connection error: {e}") from e

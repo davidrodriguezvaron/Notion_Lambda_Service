@@ -104,8 +104,9 @@ class TestReopenRecurringTasks(unittest.TestCase):
     def test_other_query_errors_propagate(self):
         repo = Mock()
         repo.find_done_recurring.side_effect = TaskStoreError("boom")
+        use_case = ReopenRecurringTasks(repo)
         with self.assertRaises(TaskStoreError):
-            ReopenRecurringTasks(repo).execute()
+            use_case.execute()
 
     def test_permission_error_says_what_to_enable_and_stops(self):
         repo = Mock()

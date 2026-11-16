@@ -9,6 +9,7 @@ from app.domain.task import Task
 BASE_ENV = {
     "NOTION_API_KEY": "secret",
     "NOTION_DATABASE_ID": "1fab-4158",
+    "NOTION_DATA_SOURCE_ID": "ad1c-51ed",
     "SES_SENDER_EMAIL": "sender@example.com",
     "SES_RECEIVER_EMAIL": "receiver@example.com",
 }

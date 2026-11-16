@@ -17,9 +17,11 @@ TRUE_VALUES = {"1", "true", "yes", "si", "sí", "on"}
 REQUIRED_VARS = (
     "NOTION_API_KEY",
     "NOTION_DATABASE_ID",
+    "NOTION_DATA_SOURCE_ID",
     "SES_SENDER_EMAIL",
     "SES_RECEIVER_EMAIL",
 )
+DEFAULT_NOTION_VERSION = "2026-03-11"
 DEFAULT_TIMEZONE = "America/Bogota"
 DEFAULT_UPCOMING_DAYS = 3
 
@@ -36,6 +38,7 @@ class Settings:
     notion_version: str
     notion_base_url: str
     notion_database_id: str
+    notion_data_source_id: str
     notion_filter_properties: Tuple[str, ...]
     notion_tasks_url: str
     ses_sender: str
@@ -82,9 +85,10 @@ class Settings:
                 get("LOG_LEVEL", "INFO" if environment == "PRODUCTION" else "DEBUG")
             ),
             notion_api_key=get("NOTION_API_KEY"),
-            notion_version=get("NOTION_VERSION", "2022-06-28"),
+            notion_version=get("NOTION_VERSION", DEFAULT_NOTION_VERSION),
             notion_base_url=get("NOTION_BASE_URL", "https://api.notion.com/v1"),
             notion_database_id=database_id,
+            notion_data_source_id=get("NOTION_DATA_SOURCE_ID"),
             notion_filter_properties=_split(
                 get("NOTION_DATABASE_FILTER_PROPERTIES", "Notas,Tarea,Fecha,Área")
             ),

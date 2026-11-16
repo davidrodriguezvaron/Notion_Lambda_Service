@@ -19,11 +19,11 @@ class NotionTaskRepository:
     def __init__(
         self,
         client: NotionClient,
-        database_id: str,
+        data_source_id: str,
         filter_properties: Sequence[str] = (),
     ):
         self._client = client
-        self._database_id = database_id
+        self._data_source_id = data_source_id
         self._filter_properties = _with_required(filter_properties)
 
     def find_pending(self, until: date) -> List[Task]:
@@ -77,8 +77,8 @@ class NotionTaskRepository:
         self, body: Dict[str, Any], filter_properties: Sequence[str] = ()
     ) -> List[Task]:
         with _translate_errors():
-            pages = self._client.query_database(
-                self._database_id, body, filter_properties
+            pages = self._client.query_data_source(
+                self._data_source_id, body, filter_properties
             )
         return [to_task(page) for page in pages]
 

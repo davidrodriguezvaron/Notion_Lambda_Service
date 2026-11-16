@@ -149,7 +149,9 @@ class TestPaperHtmlRenderer(unittest.TestCase):
         self.assertNotIn(">Vencidas</div>", html_)
 
     def test_template_is_cached(self):
-        self.assertIs(load_template(), load_template())
+        first = load_template()
+        second = load_template()
+        self.assertIs(first, second)
 
 
 if __name__ == "__main__":
