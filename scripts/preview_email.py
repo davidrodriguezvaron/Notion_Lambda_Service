@@ -16,9 +16,11 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from app.common.adapter.email_adapter import EmailAdapter  # noqa: E402
-from app.common.utils.dates import today_in  # noqa: E402
-from app.logic.recurrence.recurrence_service import Rescheduled  # noqa: E402
+from app.application.clock import ZonedClock  # noqa: E402
+from app.bootstrap import build_composer  # noqa: E402
+from app.domain.agenda import build_agenda  # noqa: E402
+from app.domain.recurrence import RescheduledTask  # noqa: E402
+from app.domain.task import Task  # noqa: E402
 
 TZ = ZoneInfo("America/Bogota")
 
@@ -29,59 +31,63 @@ def sample_tasks(today: date):
 
     page = "https://www.notion.so/ejemplo-"
     return [
-        {"titulo": "Pagar ENEL", "fecha": d(-2), "area": "Hogar", "url": page + "1"},
+        {"title": "Pagar ENEL", "due": d(-2), "area": "Hogar", "url": page + "1"},
         {
-            "titulo": "Revisar SIMIT",
-            "fecha": d(-1),
+            "title": "Revisar SIMIT",
+            "due": d(-1),
             "area": "Carro",
-            "notas": "Consultar en https://www.fcm.org.co/simit/ antes de pagar.",
+            "notes": "Consultar en https://www.fcm.org.co/simit/ antes de pagar.",
             "url": page + "2",
         },
         {
-            "titulo": "Responder LinkedIn",
-            "fecha": d(0),
+            "title": "Responder LinkedIn",
+            "due": d(0),
             "area": "Trabajo",
             "url": page + "3",
         },
         {
-            "titulo": "Vacuna Nala rabia",
-            "fecha": f"{d(0)}T10:30:00.000-05:00",
+            "title": "Vacuna Nala rabia",
+            "due": f"{d(0)}T10:30:00.000-05:00",
             "area": "Gatos",
-            "notas": "Llevar el carné de vacunas.\nPreguntar por la desparasitación.",
+            "notes": "Llevar el carné de vacunas.\nPreguntar por la desparasitación.",
             "url": page + "4",
         },
-        {"titulo": "Ajustar seguridad iPhone", "fecha": d(0), "url": page + "5"},
+        {"title": "Ajustar seguridad iPhone", "due": d(0), "url": page + "5"},
         {
-            "titulo": "Cita médica Aleja",
-            "fecha": f"{d(1)}T15:00:00.000-05:00",
+            "title": "Cita médica Aleja",
+            "due": f"{d(1)}T15:00:00.000-05:00",
             "area": "Salud",
             "url": page + "6",
         },
-        {"titulo": "Cita mango", "fecha": d(2), "area": "Personal", "url": page + "7"},
+        {"title": "Cita mango", "due": d(2), "area": "Personal", "url": page + "7"},
         {
-            "titulo": "Organizar bloques de trabajo en torno a las reuniones para poder enfocarme",
-            "fecha": d(3),
+            "title": "Organizar bloques de trabajo en torno a las reuniones para poder enfocarme",
+            "due": d(3),
             "area": "Estudio",
-            "notas": "Ideas: arquitectura hexagonal, problema N+1, cursor vs offset. www.notion.so",
+            "notes": "Ideas: arquitectura hexagonal, problema N+1, cursor vs offset. www.notion.so",
             "url": page + "8",
         },
     ]
 
 
 def main():
-    today = date.fromisoformat(sys.argv[1]) if len(sys.argv) > 1 else today_in(TZ)
-    adapter = EmailAdapter(TZ, "https://www.notion.so/1fab41585726474ab6fba763401b3af3")
+    if len(sys.argv) > 1:
+        today = date.fromisoformat(sys.argv[1])
+    else:
+        today = ZonedClock(TZ).today()
+    composer = build_composer("https://www.notion.so/1fab41585726474ab6fba763401b3af3")
+    tasks = [Task(id=str(n), **fields) for n, fields in enumerate(sample_tasks(today))]
     rescheduled = [
-        Rescheduled(
+        RescheduledTask(
             "Pagar Vanti",
             date(2026, 12, 21),
             "https://www.notion.so/ejemplo-v",
             date(2026, 11, 21),
         ),
-        Rescheduled("Pagar Spotify", date(2026, 12, 12), None, date(2026, 11, 12)),
+        RescheduledTask("Pagar Spotify", date(2026, 12, 12), None, date(2026, 11, 12)),
     ]
-    content = adapter.build_digest(sample_tasks(today), today, 3, rescheduled)
-    empty = adapter.build_digest([], today, 3)
+    content = composer.compose(build_agenda(tasks, today, 3, TZ), rescheduled, [])
+    empty = composer.compose(build_agenda([], today, 3, TZ), [], [])
 
     out = ROOT / "preview"
     out.mkdir(exist_ok=True)

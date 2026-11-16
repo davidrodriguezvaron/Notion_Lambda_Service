@@ -60,8 +60,9 @@ tasks fall on the 29th to 31st.
 | Variable | Default | Description |
 | --- | --- | --- |
 | `NOTION_API_KEY` | required | Notion integration token |
-| `NOTION_DATABASE_ID` | required | Id of the "Tareas" database |
-| `NOTION_VERSION` | `2022-06-28` | Notion API version (see note below) |
+| `NOTION_DATABASE_ID` | required | Id of the "Tareas" database, used for the default footer link |
+| `NOTION_DATA_SOURCE_ID` | required | Id of the "Tareas" data source, used by the queries (see note below) |
+| `NOTION_VERSION` | `2026-03-11` | Notion API version |
 | `NOTION_BASE_URL` | `https://api.notion.com/v1` | Notion API base URL |
 | `NOTION_DATABASE_FILTER_PROPERTIES` | `Notas,Tarea,Fecha,Área` | Properties returned by the pending query; `Tarea`, `Fecha`, `Notas` and `Área` are always added |
 | `NOTION_TASKS_URL` | `https://www.notion.so/<database id>` | Link in the email footer |
@@ -75,13 +76,20 @@ tasks fall on the 29th to 31st.
 
 `tzdata` is a dependency so time zones do not depend on the Lambda image.
 
-Notion API version: `POST databases/{id}/query` is marked as deprecated
-starting with `2025-09-03` (databases split into data sources), but
-integrations on `2022-06-28` keep working for databases with a single data
-source and no end of life date has been announced. "Tareas" has one data
-source, so the service stays on `2022-06-28`. If someone adds a second data
-source, Notion answers 400 `multiple_data_sources_for_database`; that is the
-signal to migrate to `data_sources/{id}/query`.
+Notion data sources: since API version `2025-09-03` a database is a container
+of one or more data sources, and queries go to
+`POST data_sources/{data_source_id}/query` (the old `databases/{id}/query` is
+deprecated). A database id does not work on that endpoint. To get the data
+source id, open the database in Notion, go to "Manage data sources" and use
+"Copy data source ID", or call the API:
+
+```bash
+curl -s https://api.notion.com/v1/databases/$NOTION_DATABASE_ID \
+  -H "Authorization: Bearer $NOTION_API_KEY" \
+  -H "Notion-Version: 2026-03-11" | jq '.data_sources'
+```
+
+`NOTION_DATABASE_FILTER_PROPERTIES` accepts property names or ids.
 
 ## Local setup
 
@@ -167,17 +175,51 @@ with `Tareas:` (current format) or `Task List:` (old format).
    address (the script deletes nothing until you do).
 4. Add a daily time driven trigger for `autoDeleteNotionEmails`.
 
+## Architecture
+
+Light layers with dependencies pointing inward:
+
+```
+domain  <-  application  <-  infrastructure / presentation  <-  bootstrap
+```
+
+- `app/domain/`: plain Python, no I/O.
+  - `task.py`: `Task` and `DueDate` (parsing in the configured time zone).
+  - `recurrence.py`: intervals and the "one interval from its own date" rule.
+  - `agenda.py`: splits tasks into overdue, today and upcoming.
+- `app/application/`: use cases and the interfaces they need.
+  - `ports.py`: `TaskRepository`, `DigestComposer`, `EmailSender`, `Clock`.
+  - `reopen_recurring_tasks.py`: reopens done recurring tasks (idempotent).
+  - `send_daily_digest.py`: the daily run (reopen, read, compose, send).
+  - `errors.py`: repository errors the use cases understand.
+  - `clock.py`: "today" in the user's time zone.
+- `app/infrastructure/`: adapters to the outside world.
+  - `notion/client.py`: HTTP, auth, errors and pagination.
+  - `notion/task_mapper.py`: Notion page to `Task`.
+  - `notion/task_repository.py`: implements `TaskRepository`.
+  - `notion/schema.py`: property and status names of the "Tareas" database.
+  - `ses/email_sender.py`: implements `EmailSender`.
+  - `logging_setup.py`: log level and format.
+- `app/presentation/email/`: the digest email.
+  - `composer.py`: subject plus HTML and text bodies.
+  - `html_renderer.py`, `html_task_list.py`, `html_primitives.py`: "paper" HTML.
+  - `text_renderer.py`: plain text alternative.
+  - `copy.py`: Spanish wording; `spanish_dates.py`: dates without system locale.
+  - `theme.py`: colors; `linkify.py`: links in notes; `template.html`: layout.
+- `app/config/settings.py`: immutable `Settings` read once from the environment.
+- `app/bootstrap.py`: composition root, the only place that builds concrete
+  classes.
+- `app/lambda_function.py`: entry point (`app.lambda_function.lambda_handler`).
+
+To change where tasks come from or how the email is sent, write a new class
+that follows the matching port and wire it in `bootstrap.py`; the use cases
+do not change.
+
 ## Project structure
 
-- `app/lambda_function.py`: Lambda entrypoint.
-- `app/logic/function/`: main flow (recurrence, query, email).
-- `app/logic/recurrence/`: recurring task rules.
-- `app/common/adapter/email_adapter.py`: subject, HTML and plain text.
-- `app/common/integrations/notion/`: Notion client and task repository.
-- `app/common/integrations/ses/`: SES client.
-- `app/common/utils/dates.py`: time zone and Spanish date helpers.
-- `app/resources/email_template.html`: email layout.
+- `app/`: application code (see Architecture).
 - `assets/`: sample email (HTML and PNG).
 - `scripts/`: build, deploy, test and helper scripts.
-- `tests/`: unit tests (pytest).
+- `tests/`: unit tests (pytest), mirroring `app/`; `tests/fakes.py` has
+  in-memory doubles for the ports.
 - `requirements.txt` / `requirements-dev.txt`: pinned dependencies.
