@@ -11,7 +11,6 @@ PROP_NOTES = "Notas"
 PROP_STATUS = "Status"
 PROP_AREA = "Área"
 PROP_RECURRENCE = "Recurrencia"
-PROP_ANCHOR = "Día ancla"
 
 STATUS_NOT_STARTED = "Not Started"
 STATUS_IN_PROGRESS = "In Progress"
@@ -94,23 +93,19 @@ class TaskRepository:
         results = self._query_all(f"databases/{self.database_id}/query", payload)
         return [self._map_task(task) for task in results]
 
-    def reschedule_task(
-        self, task_id: str, new_start: str, anchor_day: Optional[int]
-    ) -> Dict[str, Any]:
+    def reschedule_task(self, task_id: str, new_start: str) -> Dict[str, Any]:
         """
-        Reopens a recurring task with its next date (single PATCH, atomic).
+        Reopens a recurring task with its next date. Status and Fecha change in
+        a single PATCH, so the task is never left half updated.
 
         Args:
             task_id: Notion page id.
             new_start: New Fecha start (date or datetime ISO string).
-            anchor_day: Day of month to remember for month based intervals.
         """
-        properties: Dict[str, Any] = {
+        properties = {
             PROP_STATUS: {"status": {"name": STATUS_NOT_STARTED}},
             PROP_DATE: {"date": {"start": new_start}},
         }
-        if anchor_day is not None:
-            properties[PROP_ANCHOR] = {"number": anchor_day}
         return self.notion_client.patch(f"pages/{task_id}", {"properties": properties})
 
     # ----------------------------------------------------------------- helpers
@@ -157,7 +152,6 @@ class TaskRepository:
             "notas": self._extract_notes(properties),
             "area": self._extract_select(properties, PROP_AREA),
             "recurrencia": self._extract_select(properties, PROP_RECURRENCE),
-            "dia_ancla": self._extract_number(properties, PROP_ANCHOR),
         }
 
     @staticmethod
@@ -181,11 +175,6 @@ class TaskRepository:
     def _extract_select(properties: Dict[str, Any], name: str) -> Optional[str]:
         select = (properties.get(name) or {}).get("select")
         return select.get("name") if select else None
-
-    @staticmethod
-    def _extract_number(properties: Dict[str, Any], name: str) -> Optional[int]:
-        value = (properties.get(name) or {}).get("number")
-        return int(value) if isinstance(value, (int, float)) else None
 
     def _create_pending_tasks_payload(self, limit: date) -> Dict[str, Any]:
         """Filter: pending status and Fecha on or before the limit date."""

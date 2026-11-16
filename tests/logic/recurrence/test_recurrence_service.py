@@ -7,28 +7,34 @@ from app.logic.recurrence.recurrence_service import (
     PERMISSION_HINT,
     RecurrenceService,
     next_date,
-    resolve_anchor,
 )
 
 
-def task(
-    fecha, recurrencia="Mensual", dia_ancla=None, titulo="Pagar ENEL", task_id="t1"
-):
+def task(fecha, recurrencia="Mensual", titulo="Pagar ENEL", task_id="t1"):
     return {
         "id": task_id,
         "url": f"https://www.notion.so/{task_id}",
         "titulo": titulo,
         "fecha": fecha,
         "recurrencia": recurrencia,
-        "dia_ancla": dia_ancla,
     }
 
 
-class FakeRepository:
-    """In-memory Notion: only Done tasks with recurrence are returned."""
+class FakeNotion:
+    """
+    In-memory version of the Tareas database that behaves like Notion:
+    only Done tasks with a recurrence come back from the query, and a PATCH
+    changes the stored status and date.
+    """
 
-    def __init__(self, tasks):
-        self.tasks = {t["id"]: dict(t, status="Done") for t in tasks}
+    def __init__(self, tasks, done_ids=None):
+        if done_ids is None:
+            done_ids = [t["id"] for t in tasks]
+        done_ids = set(done_ids)
+        self.tasks = {
+            t["id"]: dict(t, status="Done" if t["id"] in done_ids else "Not Started")
+            for t in tasks
+        }
         self.patches = []
 
     def get_done_recurring_tasks(self):
@@ -38,12 +44,13 @@ class FakeRepository:
             if t["status"] == "Done" and t.get("recurrencia")
         ]
 
-    def reschedule_task(self, task_id, new_start, anchor_day):
-        self.patches.append((task_id, new_start, anchor_day))
-        stored = self.tasks[task_id]
-        stored.update(status="Not Started", fecha=new_start)
-        if anchor_day is not None:
-            stored["dia_ancla"] = anchor_day
+    def reschedule_task(self, task_id, new_start):
+        self.patches.append((task_id, new_start))
+        self.tasks[task_id].update(status="Not Started", fecha=new_start)
+
+    def check(self, task_id):
+        """Simulates ticking the Status checkbox in the "Todo" view."""
+        self.tasks[task_id]["status"] = "Done"
 
 
 class TestNextDate(unittest.TestCase):
@@ -60,96 +67,99 @@ class TestNextDate(unittest.TestCase):
         }
         for interval, result in expected.items():
             with self.subTest(interval=interval):
-                self.assertEqual(next_date(base, interval, None), result)
+                self.assertEqual(next_date(base, interval), result)
 
-    def test_end_of_month_round_trip(self):
-        # 31 Jan -> 28 Feb -> 31 Mar -> 30 Apr -> 31 May
-        current, anchor = date(2027, 1, 31), None
-        seen = []
-        for _ in range(4):
-            anchor = resolve_anchor(current, anchor)
-            current = next_date(current, "Mensual", anchor)
-            seen.append(current)
+    def test_water_bill_every_two_months_from_3_dec(self):
+        dates = [date(2026, 12, 3)]
+        for _ in range(3):
+            dates.append(next_date(dates[-1], "Bimestral"))
         self.assertEqual(
-            seen,
-            [
-                date(2027, 2, 28),
-                date(2027, 3, 31),
-                date(2027, 4, 30),
-                date(2027, 5, 31),
-            ],
+            dates,
+            [date(2026, 12, 3), date(2027, 2, 3), date(2027, 4, 3), date(2027, 6, 3)],
         )
 
-    def test_leap_year_february(self):
-        self.assertEqual(
-            next_date(date(2028, 1, 31), "Mensual", None), date(2028, 2, 29)
-        )
-        self.assertEqual(next_date(date(2028, 2, 29), "Anual", 29), date(2029, 2, 28))
-        self.assertEqual(next_date(date(2031, 2, 28), "Anual", 29), date(2032, 2, 29))
+    def test_end_of_month_uses_last_day(self):
+        self.assertEqual(next_date(date(2027, 1, 31), "Mensual"), date(2027, 2, 28))
+        self.assertEqual(next_date(date(2028, 1, 31), "Mensual"), date(2028, 2, 29))
+        self.assertEqual(next_date(date(2026, 8, 31), "Semestral"), date(2027, 2, 28))
 
-    def test_weekly_ignores_anchor(self):
-        self.assertEqual(next_date(date(2027, 1, 31), "Semanal", 31), date(2027, 2, 7))
-
-
-class TestResolveAnchor(unittest.TestCase):
-    def test_no_stored_anchor_uses_current_day(self):
-        self.assertEqual(resolve_anchor(date(2027, 1, 31), None), 31)
-
-    def test_clamped_date_keeps_anchor(self):
-        self.assertEqual(resolve_anchor(date(2027, 2, 28), 31), 31)
-        self.assertEqual(resolve_anchor(date(2027, 4, 30), 31), 31)
-
-    def test_manual_move_overrides_anchor(self):
-        # The user moved the task from the 21st to the 25th by hand.
-        self.assertEqual(resolve_anchor(date(2026, 12, 25), 21), 25)
+    def test_year_rollover(self):
+        self.assertEqual(next_date(date(2026, 12, 12), "Mensual"), date(2027, 1, 12))
+        self.assertEqual(next_date(date(2027, 9, 1), "Anual"), date(2028, 9, 1))
 
 
 class TestRecurrenceService(unittest.TestCase):
-    def test_reschedules_done_task_one_interval_from_its_own_date(self):
-        repo = FakeRepository([task("2026-11-21")])
-        result = RecurrenceService(repo).process()
+    def test_checked_task_is_reopened_one_interval_from_its_own_date(self):
+        notion = FakeNotion([task("2026-11-21")])
+        result = RecurrenceService(notion).process()
 
-        self.assertEqual(repo.patches, [("t1", "2026-12-21", 21)])
+        self.assertEqual(notion.patches, [("t1", "2026-12-21")])
+        self.assertEqual(notion.tasks["t1"]["status"], "Not Started")
         self.assertEqual(len(result.rescheduled), 1)
-        self.assertEqual(result.rescheduled[0].nueva_fecha, date(2026, 12, 21))
-        self.assertEqual(result.rescheduled[0].titulo, "Pagar ENEL")
+        item = result.rescheduled[0]
+        self.assertEqual(item.titulo, "Pagar ENEL")
+        self.assertEqual(item.fecha_anterior, date(2026, 11, 21))
+        self.assertEqual(item.nueva_fecha, date(2026, 12, 21))
         self.assertEqual(result.warnings, [])
 
-    def test_old_overdue_task_advances_only_one_interval(self):
-        repo = FakeRepository([task("2026-08-21")])
-        RecurrenceService(repo).process()
-        self.assertEqual(repo.patches[0][1], "2026-09-21")
+    def test_unchecked_task_is_never_moved(self):
+        # An unpaid bill stays where it is, so it keeps showing as overdue.
+        notion = FakeNotion([task("2026-10-21")], done_ids=[])
+        result = RecurrenceService(notion).process()
 
-    def test_idempotent_on_second_run(self):
-        repo = FakeRepository(
-            [task("2026-11-21"), task("2026-12-12", "Anual", task_id="t2")]
+        self.assertEqual(notion.patches, [])
+        self.assertEqual(notion.tasks["t1"]["fecha"], "2026-10-21")
+        self.assertEqual(result.rescheduled, [])
+
+    def test_checked_task_without_recurrence_stays_done(self):
+        notion = FakeNotion([task("2026-11-21", recurrencia=None)])
+        RecurrenceService(notion).process()
+        self.assertEqual(notion.tasks["t1"]["status"], "Done")
+        self.assertEqual(notion.patches, [])
+
+    def test_late_payment_advances_only_one_interval(self):
+        # Paid two months late: next date is the missed month, not today.
+        notion = FakeNotion([task("2026-09-21")])
+        RecurrenceService(notion).process()
+        self.assertEqual(notion.patches, [("t1", "2026-10-21")])
+
+    def test_idempotent_when_run_twice_the_same_day(self):
+        notion = FakeNotion(
+            [task("2026-11-21"), task("2026-12-03", "Bimestral", "Pagar agua", "t2")]
         )
-        service = RecurrenceService(repo)
+        service = RecurrenceService(notion)
 
         first = service.process()
         second = service.process()
 
         self.assertEqual(len(first.rescheduled), 2)
         self.assertEqual(second.rescheduled, [])
-        self.assertEqual(len(repo.patches), 2)
-        self.assertEqual(repo.tasks["t1"]["fecha"], "2026-12-21")
+        self.assertEqual(len(notion.patches), 2)
+        self.assertEqual(notion.tasks["t1"]["fecha"], "2026-12-21")
+        self.assertEqual(notion.tasks["t2"]["fecha"], "2027-02-03")
 
-    def test_end_of_month_uses_stored_anchor(self):
-        repo = FakeRepository([task("2027-02-28", dia_ancla=31)])
-        RecurrenceService(repo).process()
-        self.assertEqual(repo.patches, [("t1", "2027-03-31", 31)])
+    def test_month_by_month_cycle(self):
+        # Tick it, the Lambda reopens it, tick it again next month...
+        notion = FakeNotion([task("2026-11-21")])
+        service = RecurrenceService(notion)
+        seen = []
+        for _ in range(3):
+            service.process()
+            seen.append(notion.tasks["t1"]["fecha"])
+            notion.check("t1")
+        self.assertEqual(seen, ["2026-12-21", "2027-01-21", "2027-02-21"])
 
     def test_keeps_time_of_datetime_tasks(self):
-        repo = FakeRepository([task("2026-11-21T10:30:00.000-05:00", "Semanal")])
-        RecurrenceService(repo).process()
-        self.assertEqual(repo.patches, [("t1", "2026-11-28T10:30:00.000-05:00", None)])
+        notion = FakeNotion([task("2026-11-21T10:30:00.000-05:00", "Semanal")])
+        RecurrenceService(notion).process()
+        self.assertEqual(notion.patches, [("t1", "2026-11-28T10:30:00.000-05:00")])
 
     def test_skips_task_without_date_or_unknown_interval(self):
-        repo = FakeRepository(
+        notion = FakeNotion(
             [task(None), task("2026-11-21", "Cada luna llena", task_id="t2")]
         )
-        result = RecurrenceService(repo).process()
-        self.assertEqual(repo.patches, [])
+        result = RecurrenceService(notion).process()
+        self.assertEqual(notion.patches, [])
         self.assertEqual(result.rescheduled, [])
 
     def test_missing_property_in_database_is_not_fatal(self):
@@ -195,28 +205,7 @@ class TestRecurrenceService(unittest.TestCase):
         ]
         result = RecurrenceService(repo).process()
         self.assertEqual([r.titulo for r in result.rescheduled], ["Pagar Vanti"])
-        self.assertEqual(len(result.warnings), 1)
-
-    def test_retries_without_anchor_when_property_is_missing(self):
-        repo = Mock()
-        repo.get_done_recurring_tasks.return_value = [task("2026-11-21")]
-        repo.reschedule_task.side_effect = [
-            NotionApiError("Día ancla is not a property", status_code=400),
-            None,
-        ]
-        result = RecurrenceService(repo).process()
-        self.assertEqual(len(result.rescheduled), 1)
-        self.assertEqual(
-            repo.reschedule_task.call_args_list[1].args, ("t1", "2026-12-21", None)
-        )
-
-    def test_400_without_anchor_is_reported(self):
-        repo = Mock()
-        repo.get_done_recurring_tasks.return_value = [task("2026-11-21", "Semanal")]
-        repo.reschedule_task.side_effect = NotionApiError("bad", status_code=400)
-        result = RecurrenceService(repo).process()
-        self.assertEqual(result.rescheduled, [])
-        self.assertEqual(len(result.warnings), 1)
+        self.assertEqual(result.warnings, ['No se pudo reprogramar "Falla".'])
 
 
 if __name__ == "__main__":

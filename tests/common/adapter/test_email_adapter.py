@@ -103,7 +103,14 @@ class TestHtml(unittest.TestCase):
             self.tasks,
             TODAY,
             3,
-            rescheduled=[Rescheduled("Pagar Vanti", date(2026, 12, 21))],
+            rescheduled=[
+                Rescheduled(
+                    "Pagar Vanti",
+                    date(2026, 12, 21),
+                    "https://www.notion.so/v",
+                    date(2026, 11, 21),
+                )
+            ],
             warnings=["Aviso de permisos"],
         )
         self.html = self.content.html
@@ -161,10 +168,26 @@ class TestHtml(unittest.TestCase):
         self.assertIn("<br>", self.html)
 
     def test_footer(self):
-        self.assertIn("Reprogramadas:</strong> Pagar Vanti al 21 dic", self.html)
+        self.assertIn("Reprogramadas hoy (1)", self.html)
+        self.assertIn(">Pagar Vanti</a></strong>: del 21 nov al 21 dic", self.html)
+        # The rescheduled box comes after the task sections.
+        self.assertGreater(
+            self.html.index("Reprogramadas hoy"), self.html.index("Próximos días")
+        )
         self.assertIn("Abrir Tareas en Notion", self.html)
         self.assertIn('href="https://www.notion.so/db"', self.html)
         self.assertIn("Aviso de permisos", self.html)
+
+    def test_no_rescheduled_box_when_nothing_moved(self):
+        content = self.adapter.build_digest([t("c", "2026-11-16")], TODAY, 3)
+        self.assertNotIn("Reprogramadas hoy", content.html)
+        self.assertNotIn("REPROGRAMADAS", content.text)
+
+    def test_rescheduled_without_old_date_or_url(self):
+        content = self.adapter.build_digest(
+            [], TODAY, 3, rescheduled=[Rescheduled("Pagar TC", date(2026, 12, 1))]
+        )
+        self.assertIn("<strong>Pagar TC</strong>: al 1 dic", content.html)
 
     def test_no_footer_link_without_url(self):
         content = EmailAdapter(TZ).build_digest([], TODAY, 3)
@@ -203,7 +226,14 @@ class TestPlainText(unittest.TestCase):
             tasks,
             TODAY,
             3,
-            rescheduled=[Rescheduled("Pagar Vanti", date(2026, 12, 21))],
+            rescheduled=[
+                Rescheduled(
+                    "Pagar Vanti",
+                    date(2026, 12, 21),
+                    "https://www.notion.so/v",
+                    date(2026, 11, 21),
+                )
+            ],
             warnings=["Revisa permisos"],
         ).text
         expected = (
@@ -222,7 +252,8 @@ class TestPlainText(unittest.TestCase):
             "PRÓXIMOS DÍAS (1)\n"
             "- Cita mango (mañana)\n"
             "\n"
-            "Reprogramadas: Pagar Vanti al 21 dic\n"
+            "REPROGRAMADAS HOY (1)\n"
+            "- Pagar Vanti: del 21 nov al 21 dic\n"
             "\n"
             "Aviso: Revisa permisos\n"
             "\n"

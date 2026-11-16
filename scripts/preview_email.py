@@ -29,7 +29,7 @@ def sample_tasks(today: date):
 
     page = "https://www.notion.so/ejemplo-"
     return [
-        {"titulo": "Pagar ENEL", "fecha": d(-2), "area": "Finanzas", "url": page + "1"},
+        {"titulo": "Pagar ENEL", "fecha": d(-2), "area": "Hogar", "url": page + "1"},
         {
             "titulo": "Revisar SIMIT",
             "fecha": d(-1),
@@ -72,8 +72,13 @@ def main():
     today = date.fromisoformat(sys.argv[1]) if len(sys.argv) > 1 else today_in(TZ)
     adapter = EmailAdapter(TZ, "https://www.notion.so/1fab41585726474ab6fba763401b3af3")
     rescheduled = [
-        Rescheduled("Pagar Vanti", today + timedelta(days=30)),
-        Rescheduled("Pagar Spotify", today + timedelta(days=26)),
+        Rescheduled(
+            "Pagar Vanti",
+            date(2026, 12, 21),
+            "https://www.notion.so/ejemplo-v",
+            date(2026, 11, 21),
+        ),
+        Rescheduled("Pagar Spotify", date(2026, 12, 12), None, date(2026, 11, 12)),
     ]
     content = adapter.build_digest(sample_tasks(today), today, 3, rescheduled)
     empty = adapter.build_digest([], today, 3)

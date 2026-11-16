@@ -102,14 +102,6 @@ class TestAddMonths(unittest.TestCase):
         self.assertEqual(add_months(date(2027, 1, 31), 1), date(2027, 2, 28))
         self.assertEqual(add_months(date(2028, 1, 31), 1), date(2028, 2, 29))
 
-    def test_anchor_restores_original_day(self):
-        self.assertEqual(
-            add_months(date(2027, 2, 28), 1, anchor_day=31), date(2027, 3, 31)
-        )
-        self.assertEqual(
-            add_months(date(2027, 3, 31), 1, anchor_day=31), date(2027, 4, 30)
-        )
-
 
 if __name__ == "__main__":
     unittest.main()

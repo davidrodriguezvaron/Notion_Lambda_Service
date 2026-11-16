@@ -138,7 +138,6 @@ class TestTaskRepository(unittest.TestCase):
             **{
                 "Área": {"select": {"name": "Finanzas"}},
                 "Recurrencia": {"select": {"name": "Mensual"}},
-                "Día ancla": {"number": 31},
             },
         )
         result = self.repo._map_task(raw)
@@ -152,7 +151,6 @@ class TestTaskRepository(unittest.TestCase):
                 "notas": "Uno. Dos.",
                 "area": "Finanzas",
                 "recurrencia": "Mensual",
-                "dia_ancla": 31,
             },
         )
 
@@ -163,7 +161,6 @@ class TestTaskRepository(unittest.TestCase):
         self.assertEqual(result["titulo"], "")
         self.assertIsNone(result["fecha"])
         self.assertIsNone(result["area"])
-        self.assertIsNone(result["dia_ancla"])
 
     def test_title_concatenates_all_fragments(self):
         props = {
@@ -204,23 +201,17 @@ class TestTaskRepository(unittest.TestCase):
             ],
         )
 
-    def test_reschedule_task_patches_status_date_and_anchor(self):
-        self.repo.reschedule_task("page-1", "2026-12-21", 21)
+    def test_reschedule_task_patches_status_and_date_together(self):
+        self.repo.reschedule_task("page-1", "2026-12-21")
         self.client.patch.assert_called_once_with(
             "pages/page-1",
             {
                 "properties": {
                     "Status": {"status": {"name": "Not Started"}},
                     "Fecha": {"date": {"start": "2026-12-21"}},
-                    "Día ancla": {"number": 21},
                 }
             },
         )
-
-    def test_reschedule_task_without_anchor(self):
-        self.repo.reschedule_task("page-1", "2026-11-28", None)
-        props = self.client.patch.call_args[0][1]["properties"]
-        self.assertNotIn("Día ancla", props)
 
 
 if __name__ == "__main__":

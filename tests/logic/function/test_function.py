@@ -109,7 +109,20 @@ class TestNotionLambda(unittest.TestCase):
 
         self.assertEqual(response["body"]["rescheduled"], 1)
         body = self.ses.send_email.call_args.kwargs["body"]
-        self.assertIn("Pagar Vanti al 21 dic", body)
+        self.assertIn("Reprogramadas hoy (1)", body)
+        self.assertIn("Pagar Vanti", body)
+
+    def test_reschedules_are_reported_even_with_nothing_pending(self):
+        self.pending_pages = []
+        page = notion_page("9", "Pagar ENEL", "2026-11-14")
+        page["properties"]["Recurrencia"] = {"select": {"name": "Mensual"}}
+        self.done_pages = [page]
+
+        response = self.lambda_.notion_lambda_function(now=NOW)
+
+        self.assertTrue(response["body"]["email_sent"])
+        kwargs = self.ses.send_email.call_args.kwargs
+        self.assertIn("Pagar ENEL: del 14 nov al 14 dic", kwargs["text_body"])
 
     def test_recurring_done_task_is_patched(self):
         page = notion_page("9", "Pagar ENEL", "2026-11-14")

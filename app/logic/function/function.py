@@ -62,7 +62,11 @@ class NotionLambda:
         sections = content.sections
         nothing_pending = sections.total == 0
 
-        if nothing_pending and not env.send_empty_digest:
+        # Always report reschedules, even on a day with nothing pending.
+        nothing_to_report = (
+            nothing_pending and not recurrence.rescheduled and not recurrence.warnings
+        )
+        if nothing_to_report and not env.send_empty_digest:
             message = "Nothing pending; email skipped (SEND_EMPTY_DIGEST=false)."
             email_sent = False
         else:

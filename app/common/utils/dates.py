@@ -127,15 +127,13 @@ def add_days(value: date, days: int) -> date:
     return value + timedelta(days=days)
 
 
-def add_months(value: date, months: int, anchor_day: Optional[int] = None) -> date:
+def add_months(value: date, months: int) -> date:
     """
-    Adds calendar months keeping the anchor day when the month allows it.
-
-    31 Jan + 1 month -> 28/29 Feb; with anchor_day=31, 28 Feb + 1 -> 31 Mar.
+    Adds calendar months keeping the day of the month, or the last day when
+    the target month is shorter (31 Jan + 1 month -> 28/29 Feb).
     """
-    anchor = anchor_day or value.day
     month_index = value.month - 1 + months
     year = value.year + month_index // 12
     month = month_index % 12 + 1
     last_day = calendar.monthrange(year, month)[1]
-    return date(year, month, min(anchor, last_day))
+    return date(year, month, min(value.day, last_day))

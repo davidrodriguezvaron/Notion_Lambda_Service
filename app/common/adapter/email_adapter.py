@@ -196,8 +196,8 @@ class EmailAdapter:
             "{{preheader}}": html.escape(preheader),
             "{{date_label}}": html.escape(format_long_date(today)),
             "{{counters}}": self._counters_html(sections),
-            "{{sections}}": body,
-            "{{footer}}": self._footer_html(rescheduled, warnings),
+            "{{sections}}": body + self._rescheduled_html(rescheduled),
+            "{{footer}}": self._footer_html(warnings),
             "{{dark_area_css}}": self._dark_area_css(),
         }
         result = self._load_template()
@@ -359,14 +359,42 @@ class EmailAdapter:
             "para los próximos días.</div></td></tr>"
         )
 
-    def _footer_html(self, rescheduled: Sequence[Any], warnings: Sequence[str]) -> str:
-        blocks = []
-        if rescheduled:
-            blocks.append(
-                '<div class="txt-muted" style="margin-bottom:8px;">'
-                "<strong>Reprogramadas:</strong> "
-                f"{html.escape(self._rescheduled_text(rescheduled))}</div>"
+    def _rescheduled_html(self, rescheduled: Sequence[Any]) -> str:
+        """Small box at the end listing recurring tasks moved in this run."""
+        if not rescheduled:
+            return ""
+        lines = []
+        for item in rescheduled:
+            title = html.escape(item.titulo)
+            if item.url:
+                title = (
+                    f'<a href="{_attr(item.url)}" class="txt" '
+                    f'style="color:#111827;text-decoration:none;">{title}</a>'
+                )
+            lines.append(
+                f'<div style="margin-top:4px;"><strong>{title}</strong>: '
+                f"{html.escape(self._moved_label(item))}</div>"
             )
+        return (
+            '<tr><td class="px" style="padding:24px 28px 0 28px;">'
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            'border="0"><tr><td class="card-ok txt" style="background-color:#ecfdf3;'
+            "border-radius:8px;padding:12px 14px;font-size:13px;line-height:19px;"
+            'color:#111827;">'
+            '<div class="txt-ok" style="font-size:12px;font-weight:700;color:#067647;">'
+            f"Reprogramadas hoy ({len(rescheduled)})</div>"
+            f'{"".join(lines)}</td></tr></table></td></tr>'
+        )
+
+    @staticmethod
+    def _moved_label(item: Any) -> str:
+        """ "del 21 nov al 21 dic", or "al 21 dic" when the old date is unknown."""
+        new = format_day_month(item.nueva_fecha)
+        old = getattr(item, "fecha_anterior", None)
+        return f"del {format_day_month(old)} al {new}" if old else f"al {new}"
+
+    def _footer_html(self, warnings: Sequence[str]) -> str:
+        blocks = []
         for warning in warnings:
             blocks.append(
                 '<div class="txt-alert" style="color:#b42318;margin-bottom:8px;">'
@@ -387,13 +415,6 @@ class EmailAdapter:
             f'color:#6b7280;">{content}</td></tr></table></td></tr>'
         )
 
-    @staticmethod
-    def _rescheduled_text(rescheduled: Sequence[Any]) -> str:
-        return ", ".join(
-            f"{item.titulo} al {format_day_month(item.nueva_fecha)}"
-            for item in rescheduled
-        )
-
     # ------------------------------------------------------------- plain text
 
     def _render_text(self, sections, today, rescheduled, warnings) -> str:
@@ -404,7 +425,9 @@ class EmailAdapter:
             if items:
                 lines += self._section_text(key, items, today)
         if rescheduled:
-            lines += [f"Reprogramadas: {self._rescheduled_text(rescheduled)}", ""]
+            lines.append(f"REPROGRAMADAS HOY ({len(rescheduled)})")
+            lines += [f"- {r.titulo}: {self._moved_label(r)}" for r in rescheduled]
+            lines.append("")
         for warning in warnings:
             lines += [f"Aviso: {warning}", ""]
         if self.notion_tasks_url:

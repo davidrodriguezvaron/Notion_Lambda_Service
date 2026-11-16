@@ -26,7 +26,6 @@ Each run:
 | `Notas` | rich text | Shown under the task, URLs become links |
 | `Área` | select | Hogar, Gatos, Carro, Finanzas, Trabajo, Salud, Personal, Estudio |
 | `Recurrencia` | select | Semanal, Quincenal, Mensual, Bimestral, Trimestral, Semestral, Anual |
-| `Día ancla` | number | Managed by the Lambda for month based recurrences |
 
 The Notion integration needs the **Read content** and **Update content**
 capabilities (notion.so/profile/integrations). Without Update content the
@@ -34,19 +33,27 @@ recurring tasks cannot be reopened; the email then shows a warning.
 
 ### Recurring tasks
 
-For every task with `Status = Done` and a `Recurrencia` value, the Lambda:
+Each recurring bill is a single page that is reused; no new pages are
+created. For every task with `Status = Done` (the checkbox in the "Todo" view)
+and a `Recurrencia` value, the Lambda:
 
 - computes the next date from the task's own `Fecha` (not from today),
   advancing exactly one interval (Semanal = 7 days, Quincenal = 14 days,
   the rest are calendar months);
-- sets `Status = Not Started` and the new `Fecha` in a single PATCH. A second
-  run the same day finds the task `Not Started` and does nothing, so the
-  process is idempotent;
-- keeps the time of day when `Fecha` has one.
+- sets `Status = Not Started` and the new `Fecha` in a single PATCH, so the
+  task shows up unchecked again. A second run the same day finds it
+  `Not Started` and does nothing, so the process is idempotent;
+- keeps the time of day when `Fecha` has one;
+- lists it at the end of that day's email under "Reprogramadas hoy", with the
+  old and new date. The email is sent even if nothing else is pending.
 
-End of month: the original day is stored in `Día ancla`. A task on 31 Jan
-moves to 28 Feb (29 in leap years) and then back to 31 Mar. If you move a task
-to another day by hand, that day becomes the new anchor.
+Tasks that are not checked are never moved: an unpaid bill keeps showing in
+"Vencidas" until you check it. If it is checked late, it still advances one
+interval from its own date, so a missed month shows up as overdue.
+
+End of month: a task on the 31st moves to the last day of shorter months
+(31 Jan to 28 Feb) and then keeps that day. None of the current recurring
+tasks fall on the 29th to 31st.
 
 ## Configuration
 
