@@ -117,7 +117,7 @@ The project uses GitHub Actions for Continuous Integration and Deployment.
 
 3.  **Deploy Main (`.github/workflows/deploy-main.yml`)**:
     - Triggers on Push to `main` (after merge).
-    - Deploys to AWS using `scripts/deploy_all.sh` (skips tests).
+    - Runs the tests in a separate job (without AWS credentials), then deploys to AWS using `scripts/deploy_all.sh`.
 
 ### Configuration
 
