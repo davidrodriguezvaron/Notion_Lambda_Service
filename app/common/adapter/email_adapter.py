@@ -18,7 +18,7 @@ from app.common.utils.dates import (
     TaskDate,
     format_day_month,
     format_long_date,
-    MONTHS_SHORT,
+    format_short_date,
     parse_notion_date,
     relative_label,
 )
@@ -51,6 +51,23 @@ SECTION_STYLES = {
     "today": ("Hoy", "blue"),
     "upcoming": ("Próximos días", "slate"),
 }
+
+# Small icons: emoji render in Gmail, Apple Mail and Outlook without CSS.
+AREA_EMOJI = {
+    "Hogar": "🏠",
+    "Gatos": "🐱",
+    "Carro": "🚗",
+    "Finanzas": "💰",
+    "Trabajo": "💼",
+    "Salud": "🩺",
+    "Personal": "✨",
+    "Estudio": "📚",
+}
+SECTION_EMOJI = {"overdue": "⏰", "today": "📌", "upcoming": "🗓️"}
+
+# Up to this many upcoming days get their own cell in the header agenda;
+# a longer window is shown as a single "Próximas" cell.
+MAX_STRIP_DAYS = 4
 
 INK = "#0f172a"
 MUTED = "#64748b"
@@ -182,7 +199,9 @@ class EmailAdapter:
         """Builds subject, HTML and plain text for the digest."""
         sections = self.group_tasks(tasks, today, upcoming_days)
         subject = self.subject(sections)
-        html_body = self._render_html(sections, today, rescheduled, warnings)
+        html_body = self._render_html(
+            sections, today, rescheduled, warnings, upcoming_days
+        )
         text_body = self._render_text(sections, today, rescheduled, warnings)
         return EmailContent(subject, html_body, text_body, sections)
 
@@ -194,7 +213,9 @@ class EmailAdapter:
                 self._template = f.read()
         return self._template
 
-    def _render_html(self, sections, today, rescheduled, warnings) -> str:
+    def _render_html(
+        self, sections, today, rescheduled, warnings, upcoming_days=3
+    ) -> str:
         if sections.total:
             body = "".join(
                 self._section_html(key, items, today)
@@ -210,8 +231,8 @@ class EmailAdapter:
         replacements = {
             "{{subject}}": html.escape(self.subject(sections)),
             "{{preheader}}": html.escape(preheader),
-            "{{header}}": self._header_html(sections, today),
-            "{{counters}}": self._counters_html(sections),
+            "{{header}}": self._header_html(sections, today, upcoming_days),
+            "{{counters}}": "",
             "{{sections}}": body,
             "{{footer}}": self._footer_html(),
             "{{dark_area_css}}": self._dark_area_css(),
@@ -280,84 +301,98 @@ class EmailAdapter:
             return f"{first} y {extra[0]}."
         return f"{first}, {extra[0]} y {extra[1]}."
 
-    def _header_html(self, sections: Sections, today: date) -> str:
-        month = MONTHS_SHORT[today.month - 1].upper()
+    def _header_html(self, sections: Sections, today: date, upcoming_days: int) -> str:
+        strip = self._agenda_strip_html(sections, today, upcoming_days)
         return (
-            '<tr><td class="px" style="padding:30px 32px 6px 32px;">'
-            '<table role="presentation" cellpadding="0" cellspacing="0" border="0">'
-            '<tr><td valign="top" width="58" style="width:58px;">'
-            '<table role="presentation" class="tile" width="58" cellpadding="0" '
-            'cellspacing="0" border="0" style="width:58px;background-color:#0f172a;'
-            'border-radius:14px;"><tr><td align="center" style="padding:8px 0 9px 0;">'
-            '<div class="tile-month" style="font-size:11px;line-height:13px;'
-            f'font-weight:700;letter-spacing:0.12em;color:#94a3b8;">{month}</div>'
-            '<div class="tile-day" style="font-size:26px;line-height:30px;'
-            f'font-weight:800;color:#ffffff;">{today.day}</div>'
-            "</td></tr></table></td>"
-            '<td valign="middle" style="padding-left:16px;">'
-            f'<div class="txt-muted" style="font-size:13px;line-height:18px;color:{MUTED};'
-            'font-weight:600;">Buenos días</div>'
-            f'<div class="txt h1" style="font-size:23px;line-height:29px;color:{INK};'
-            f'font-weight:800;letter-spacing:-0.01em;">{html.escape(format_long_date(today))}'
-            "</div></td></tr></table>"
-            f'<div class="txt-muted" style="font-size:15px;line-height:22px;color:{MUTED};'
-            f'margin-top:16px;">{html.escape(self.greeting_line(sections))}</div>'
-            "</td></tr>"
+            '<tr><td class="hero px" style="background-color:#0f172a;'
+            'border-radius:17px 17px 0 0;padding:30px 32px 28px 32px;">'
+            '<div style="font-size:12px;line-height:16px;font-weight:700;'
+            'letter-spacing:0.12em;text-transform:uppercase;color:#94a3b8;">'
+            "Buenos días</div>"
+            '<div class="h1" style="font-size:27px;line-height:33px;font-weight:800;'
+            'letter-spacing:-0.01em;color:#ffffff;margin-top:6px;">'
+            f"{html.escape(format_long_date(today))}</div>"
+            '<div style="font-size:15px;line-height:22px;color:#cbd5e1;margin-top:8px;">'
+            f"{html.escape(self.greeting_line(sections))}</div>"
+            f"{strip}</td></tr>"
         )
 
-    def _counters_html(self, sections: Sections) -> str:
+    def _agenda_strip_html(
+        self, sections: Sections, today: date, upcoming_days: int
+    ) -> str:
+        """Row of small cells: Vencidas, Hoy and each upcoming day with a count."""
         if not sections.total:
             return ""
-        cards = [
-            ("Vencidas", len(sections.overdue), "red" if sections.overdue else "slate"),
-            ("Hoy", len(sections.today), "blue"),
-            ("Próximas", len(sections.upcoming), "slate"),
+        overdue = len(sections.overdue)
+        cells = [
+            (
+                "Vencidas",
+                overdue,
+                ("#3b1820", "#fca5a5") if overdue else ("#1e293b", "#64748b"),
+            ),
+            ("Hoy", len(sections.today), ("#2563eb", "#ffffff")),
         ]
-        cells = []
-        for index, (label, count, tone) in enumerate(cards):
-            accent, soft, fg = TONES[tone]
-            number_color = fg if tone != "slate" else INK
-            number_cls = f"fg-{tone}" if tone != "slate" else "txt"
+        if upcoming_days <= MAX_STRIP_DAYS:
+            for offset in range(1, upcoming_days + 1):
+                day = today + timedelta(days=offset)
+                count = sum(
+                    1 for t in sections.upcoming if t.when and t.when.day == day
+                )
+                label = "Mañana" if offset == 1 else format_short_date(day)[:3]
+                label = label.capitalize() if offset > 1 else label
+                colors = ("#1e293b", "#ffffff" if count else "#64748b")
+                cells.append(
+                    (f"{label} {day.day}" if offset > 1 else label, count, colors)
+                )
+        else:
+            cells.append(("Próximas", len(sections.upcoming), ("#1e293b", "#ffffff")))
+
+        tds = []
+        cell_width = f"{100 // len(cells)}%"
+        for index, (label, count, (bg, fg)) in enumerate(cells):
             gap = (
                 ""
                 if index == 0
-                else '<td width="10" style="width:10px;font-size:0;">&nbsp;</td>'
+                else '<td width="6" style="width:6px;font-size:0;">&nbsp;</td>'
             )
-            cells.append(
-                f'{gap}<td class="soft-{tone} bar-{tone}" width="33%" valign="top" '
-                f'style="background-color:{soft};border-top:3px solid {accent};'
-                'border-radius:12px;padding:12px 14px 13px 14px;">'
-                f'<div class="{number_cls} count" style="font-size:28px;line-height:32px;'
-                f'font-weight:800;color:{number_color};">{count}</div>'
-                f'<div class="txt-muted" style="font-size:12px;line-height:16px;'
-                f'font-weight:600;color:{MUTED};margin-top:2px;">{label}</div></td>'
+            label_color = "#dbeafe" if bg == "#2563eb" else "#94a3b8"
+            tds.append(
+                f'{gap}<td align="center" valign="top" width="{cell_width}" '
+                f'style="width:{cell_width};background-color:{bg};'
+                'border-radius:12px;padding:10px 4px 11px 4px;">'
+                f'<div style="font-size:11px;line-height:14px;font-weight:700;'
+                f'color:{label_color};white-space:nowrap;">{html.escape(label)}</div>'
+                f'<div class="count" style="font-size:24px;line-height:28px;'
+                f'font-weight:800;color:{fg};margin-top:3px;">{count}</div></td>'
             )
         return (
-            '<tr><td class="px" style="padding:18px 32px 4px 32px;">'
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-            f'border="0"><tr>{"".join(cells)}</tr></table></td></tr>'
+            f'border="0" style="margin-top:22px;"><tr>{"".join(tds)}</tr></table>'
         )
 
     # --------------------------------------------------------------- sections
 
     def _section_html(self, key: str, items: List[DigestTask], today: date) -> str:
         title, tone = SECTION_STYLES[key]
-        accent, soft, fg = TONES[tone]
-        rows = "".join(
-            self._task_html(task, today, key, index == len(items) - 1)
-            for index, task in enumerate(items)
-        )
-        dot_color = fg if tone != "slate" else MUTED
+        accent, _, fg = TONES[tone]
+        if key == "upcoming":
+            rows = self._grouped_rows_html(items, today)
+        else:
+            rows = "".join(
+                self._task_html(task, today, key, index == len(items) - 1)
+                for index, task in enumerate(items)
+            )
+        title_color = fg if tone != "slate" else "#334155"
+        title_cls = f"fg-{tone}" if tone != "slate" else "txt"
         return (
-            '<tr><td class="px" style="padding:26px 32px 0 32px;">'
+            '<tr><td class="px" style="padding:28px 32px 0 32px;">'
             '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
             'style="margin-bottom:10px;"><tr>'
-            f'<td valign="middle" style="padding-right:8px;font-size:0;line-height:0;">'
-            f'<span class="dot-{tone}" style="display:inline-block;width:8px;height:8px;'
-            f'border-radius:4px;background-color:{dot_color};"></span></td>'
-            f'<td valign="middle" class="fg-{tone}" style="font-size:12px;line-height:16px;'
-            f"font-weight:800;letter-spacing:0.09em;text-transform:uppercase;"
-            f'color:{fg};padding-right:8px;">{title}</td>'
+            '<td valign="middle" style="padding-right:8px;font-size:15px;'
+            f'line-height:18px;">{SECTION_EMOJI[key]}</td>'
+            f'<td valign="middle" class="{title_cls}" style="font-size:15px;'
+            f'line-height:18px;font-weight:800;color:{title_color};padding-right:8px;">'
+            f"{title}</td>"
             f'<td valign="middle">{self._pill(str(len(items)), tone)}</td>'
             "</tr></table>"
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
@@ -365,6 +400,29 @@ class EmailAdapter:
             f"border:1px solid {LINE};border-left:4px solid {accent};"
             f'border-radius:12px;">{rows}</table></td></tr>'
         )
+
+    def _grouped_rows_html(self, items: List[DigestTask], today: date) -> str:
+        """Upcoming tasks grouped under a small header per day."""
+        groups: Dict[date, List[DigestTask]] = {}
+        for task in items:
+            groups.setdefault(task.when.day if task.when else today, []).append(task)
+        rows = []
+        for group_index, (day, tasks) in enumerate(groups.items()):
+            border = "" if group_index == 0 else f"border-top:1px solid {LINE};"
+            label = format_long_date(day)
+            if (day - today).days == 1:
+                label = f"Mañana · {label}"
+            rows.append(
+                f'<tr><td class="line txt-muted" style="{border}'
+                "padding:12px 16px 0 16px;font-size:11px;line-height:14px;"
+                "font-weight:800;letter-spacing:0.08em;text-transform:uppercase;"
+                f'color:{MUTED};">{html.escape(label)}</td></tr>'
+            )
+            rows += [
+                self._task_html(task, today, "upcoming", index == len(tasks) - 1)
+                for index, task in enumerate(tasks)
+            ]
+        return "".join(rows)
 
     def _task_html(self, task: DigestTask, today: date, key: str, last: bool) -> str:
         title = html.escape(task.titulo)
@@ -380,9 +438,17 @@ class EmailAdapter:
             )
             ring = f'<a href="{href}" style="text-decoration:none;">{ring}</a>'
 
-        meta = [self._when_pill(task, today, key)]
+        meta = []
+        when = self._when_pill(task, today, key)
+        if when:
+            meta.append(when)
         if task.area:
             meta.append(self._area_tag_html(task.area))
+        meta_html = (
+            f'<div style="margin-top:6px;line-height:22px;">{"&nbsp;".join(meta)}</div>'
+            if meta
+            else ""
+        )
         notes = ""
         if task.notas:
             notes = (
@@ -392,7 +458,7 @@ class EmailAdapter:
             )
         border = "" if last else f"border-bottom:1px solid {LINE};"
         return (
-            f'<tr><td class="line" style="padding:14px 16px 14px 14px;{border}">'
+            f'<tr><td class="line" style="padding:12px 16px 13px 14px;{border}">'
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
             'border="0"><tr>'
             '<td valign="top" width="26" style="width:26px;padding-top:2px;">'
@@ -400,21 +466,27 @@ class EmailAdapter:
             '<td valign="top">'
             f'<div class="txt" style="font-size:15px;line-height:21px;font-weight:700;'
             f'color:{INK};">{title}</div>'
-            f'<div style="margin-top:6px;line-height:22px;">{"&nbsp;".join(meta)}</div>'
-            f"{notes}</td></tr></table></td></tr>"
+            f"{meta_html}{notes}</td></tr></table></td></tr>"
         )
 
     def _when_pill(self, task: DigestTask, today: date, key: str) -> str:
-        tone = {"overdue": "red", "today": "blue", "upcoming": "slate"}[key]
-        return self._pill(self._when_label(task, today), tone)
+        if key in ("upcoming", "today"):
+            # The day is already in the section or group header; only the time
+            # adds information.
+            if task.when and task.when.time:
+                return self._pill(task.when.time, "blue" if key == "today" else "slate")
+            return ""
+        return self._pill(self._when_label(task, today), "red")
 
     def _area_tag_html(self, area: str) -> str:
         bg, fg, _, _ = AREA_STYLES.get(area, DEFAULT_AREA_STYLE)
+        emoji = AREA_EMOJI.get(area)
+        label = f"{emoji} {html.escape(area)}" if emoji else html.escape(area)
         return (
             f'<span class="{self._area_class(area)}" style="display:inline-block;'
             f"background-color:{bg};color:{fg};font-size:12px;line-height:18px;"
             f'font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap;">'
-            f"{html.escape(area)}</span>"
+            f"{label}</span>"
         )
 
     @staticmethod
@@ -485,7 +557,7 @@ class EmailAdapter:
             'font-size:14px;line-height:20px;">'
             f'<div class="fg-green" style="font-size:12px;line-height:16px;font-weight:800;'
             f'letter-spacing:0.09em;text-transform:uppercase;color:{fg};">'
-            f"Reprogramadas hoy ({len(rescheduled)})</div>"
+            f"🔁 Reprogramadas hoy ({len(rescheduled)})</div>"
             f'{"".join(lines)}</td></tr></table></td></tr>'
         )
 

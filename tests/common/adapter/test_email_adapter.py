@@ -143,11 +143,11 @@ class TestHtml(unittest.TestCase):
         self.assertNotIn("Próximos días", content.html)
         self.assertIn('class="box rail-blue"', content.html)
 
-    def test_overdue_counter_red_only_when_needed(self):
-        self.assertIn('class="soft-red bar-red"', self.html)
+    def test_overdue_cell_red_only_when_needed(self):
+        red_cell = "background-color:#3b1820"
+        self.assertIn(red_cell, self.html)
         content = self.adapter.build_digest([t("c", "2026-11-16")], TODAY, 3)
-        self.assertNotIn('class="soft-red bar-red"', content.html)
-        self.assertIn('class="soft-slate bar-slate"', content.html)
+        self.assertNotIn(red_cell, content.html)
 
     def test_task_title_links_to_notion_and_is_escaped(self):
         self.assertIn('href="https://www.notion.so/p1"', self.html)
@@ -155,11 +155,13 @@ class TestHtml(unittest.TestCase):
         self.assertNotIn("<Nala>", self.html)
 
     def test_area_tag_and_relative_dates(self):
-        self.assertIn(">Finanzas</span>", self.html)
+        self.assertIn(">💰 Finanzas</span>", self.html)
         self.assertIn("tag-finanzas", self.html)
-        self.assertIn("hace 2 días", self.html)
-        self.assertIn("hoy, 10:30 a. m.", self.html)
-        self.assertIn("en 2 días, mié 18 nov", self.html)
+        self.assertIn(">hace 2 días</span>", self.html)
+        # Today and upcoming only show the time; the day is in the header.
+        self.assertIn(">10:30 a. m.</span>", self.html)
+        self.assertNotIn(">hoy</span>", self.html)
+        self.assertIn(">Miércoles, 18 de noviembre</td>", self.html)
 
     def test_task_without_area_has_no_tag(self):
         content = self.adapter.build_digest([t("Sin area", "2026-11-16")], TODAY, 3)
@@ -200,13 +202,34 @@ class TestHtml(unittest.TestCase):
         self.assertNotIn("Abrir Tareas en Notion", content.html)
 
     def test_header_greeting(self):
-        self.assertIn(">NOV</div>", self.html)
-        self.assertIn(">16</div>", self.html)
         self.assertIn("Buenos días", self.html)
         self.assertIn(
             "Hoy tienes 1 tarea, 1 vencida por cerrar y 1 en los próximos días.",
             self.html,
         )
+
+    def test_agenda_strip_one_cell_per_day(self):
+        for label in (
+            ">Vencidas</div>",
+            ">Hoy</div>",
+            ">Mañana</div>",
+            ">Mié 18</div>",
+            ">Jue 19</div>",
+        ):
+            self.assertIn(label, self.html)
+        self.assertIn('width="20%"', self.html)
+
+    def test_agenda_strip_collapses_long_windows(self):
+        content = self.adapter.build_digest([t("d", "2026-11-22")], TODAY, 7)
+        self.assertIn(">Próximas</div>", content.html)
+        self.assertNotIn(">Mañana</div>", content.html)
+
+    def test_upcoming_grouped_by_day(self):
+        content = self.adapter.build_digest(
+            [t("a", "2026-11-17"), t("b", "2026-11-17"), t("c", "2026-11-18")], TODAY, 3
+        )
+        self.assertEqual(content.html.count("Mañana · Martes, 17 de noviembre"), 1)
+        self.assertEqual(content.html.count(">Miércoles, 18 de noviembre</td>"), 1)
 
     def test_greeting_variants(self):
         def line(tasks):
