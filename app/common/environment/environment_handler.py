@@ -107,7 +107,12 @@ class EnvironmentHandler:
         Validates that required environment variables are present.
         Raises ValueError if any required variable is missing.
         """
-        required_vars = ["SES_SENDER_EMAIL", "SES_RECEIVER_EMAIL"]
+        required_vars = [
+            "NOTION_API_KEY",
+            "NOTION_DATABASE_ID",
+            "SES_SENDER_EMAIL",
+            "SES_RECEIVER_EMAIL",
+        ]
         missing_vars = [var for var in required_vars if not os.getenv(var)]
 
         if missing_vars:

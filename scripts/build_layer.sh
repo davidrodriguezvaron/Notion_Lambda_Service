@@ -9,6 +9,7 @@ set -euo pipefail
 #   RUNTIME=python3.12         # Python runtime
 #   LAMBDA_ARCH=x86_64         # or arm64
 #   AWS_PROFILE=lambda         # optional
+#   BUILD_IMAGE=...            # optional, overrides the pinned build image
 #
 # Usage:
 #   scripts/build_layer.sh [requirements_file]
@@ -26,7 +27,16 @@ case "$LAMBDA_ARCH" in
   *) echo "[build-layer] Unknown LAMBDA_ARCH: $LAMBDA_ARCH (use x86_64 or arm64)" >&2; exit 1 ;;
 esac
 
-IMAGE="public.ecr.aws/sam/build-${RUNTIME}"
+# Build image. The default runtime is pinned by digest so a re-tagged image
+# cannot silently change what runs during the build. Override with BUILD_IMAGE.
+# To refresh the pin: docker buildx imagetools inspect public.ecr.aws/sam/build-python3.12:latest
+if [[ -n "${BUILD_IMAGE:-}" ]]; then
+  IMAGE="$BUILD_IMAGE"
+elif [[ "$RUNTIME" == "python3.12" ]]; then
+  IMAGE="public.ecr.aws/sam/build-python3.12@sha256:28c6fdd016bb4922d8f89f5e6dc477a31c80e3999cce2222ea22c602930a30f3"
+else
+  IMAGE="public.ecr.aws/sam/build-${RUNTIME}"
+fi
 
 echo "[build-layer] Runtime: $RUNTIME | Arch: $LAMBDA_ARCH | Image: $IMAGE"
 echo "[build-layer] Requirements: $REQ_FILE"

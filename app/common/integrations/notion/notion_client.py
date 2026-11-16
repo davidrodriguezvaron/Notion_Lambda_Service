@@ -4,6 +4,9 @@ from app.common.logger.logger import get_logger
 from app.common.environment.environment_handler import environment_handler
 from app.common.integrations.notion.exceptions import NotionApiError
 
+# (connect, read) timeout in seconds, so a stalled Notion API cannot hang the Lambda
+REQUEST_TIMEOUT = (5, 30)
+
 
 class NotionClient:
     """
@@ -59,7 +62,13 @@ class NotionClient:
 
         try:
             self.logger.debug(f"Making {method} request to {url}")
-            response = requests.request(method, url, headers=self.headers, json=payload)
+            response = requests.request(
+                method,
+                url,
+                headers=self.headers,
+                json=payload,
+                timeout=REQUEST_TIMEOUT,
+            )
             response.raise_for_status()
             return response.json()
         except requests.exceptions.HTTPError as e:

@@ -131,8 +131,9 @@ would diverge after every release.
   then creates or updates the PR to `main`.
 - `.github/workflows/pr-main.yml`: PR to `main` runs tests with coverage,
   SonarCloud and the Quality Gate, then `gh pr merge --merge --auto`.
-- `.github/workflows/deploy-main.yml`: push to `main` runs
-  `scripts/deploy_all.sh` (tests skipped).
+- `.github/workflows/deploy-main.yml`: push to `main` runs the tests in a
+  separate job (without AWS credentials), then deploys with
+  `scripts/deploy_all.sh`.
 
 Repository secrets: `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`,
 `SONAR_TOKEN`, `GH_PAT` (`repo` scope, needed so the automated PR triggers
@@ -182,13 +183,15 @@ IAM role, so it is documented but not enabled:
 ## Gmail auto delete
 
 `scripts/helpers/gmail_auto_delete.js` moves digest emails older than two days
-to the trash. It matches subjects starting with `Tareas:` (current format) and
-`Task List:` (old format).
+to the trash. It only touches emails from `SENDER_EMAIL` whose subject starts
+with `Tareas:` (current format) or `Task List:` (old format).
 
 1. Open [Google Apps Script](https://script.google.com/) and create a project
    (or open the existing one).
 2. Paste the content of `scripts/helpers/gmail_auto_delete.js`.
-3. Add a daily time driven trigger for `autoDeleteNotionEmails`.
+3. Set `SENDER_EMAIL` at the top of the script to your `SES_SENDER_EMAIL`
+   address (the script deletes nothing until you do).
+4. Add a daily time driven trigger for `autoDeleteNotionEmails`.
 
 ## Project structure
 
