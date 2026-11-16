@@ -3,6 +3,7 @@
 Script to check individual file coverage and ensure no file is below 75%
 (excluding __init__.py files)
 """
+
 import sys
 import subprocess
 
