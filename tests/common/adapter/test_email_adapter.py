@@ -131,19 +131,23 @@ class TestHtml(unittest.TestCase):
     def test_section_titles_and_rails(self):
         self.assertIn("Vencidas", self.html)
         self.assertIn("Próximos días", self.html)
-        self.assertIn("border-left:3px solid #f2a7a7", self.html)
-        self.assertIn("border-left:3px solid #2f6feb", self.html)
-        self.assertIn("border-left:3px solid #d1d5db", self.html)
+        # Colored side rail per section: red, blue and gray.
+        self.assertIn("border-left:4px solid #ef4444", self.html)
+        self.assertIn("border-left:4px solid #3b82f6", self.html)
+        self.assertIn("border-left:4px solid #cbd5e1", self.html)
 
     def test_empty_sections_hidden(self):
         content = self.adapter.build_digest([t("c", "2026-11-16")], TODAY, 3)
-        self.assertNotIn(">Vencidas <span", content.html)
+        self.assertNotIn('class="box rail-red"', content.html)
+        self.assertNotIn('class="box rail-slate"', content.html)
         self.assertNotIn("Próximos días", content.html)
+        self.assertIn('class="box rail-blue"', content.html)
 
     def test_overdue_counter_red_only_when_needed(self):
-        self.assertIn("card-alert", self.html)
+        self.assertIn('class="soft-red bar-red"', self.html)
         content = self.adapter.build_digest([t("c", "2026-11-16")], TODAY, 3)
-        self.assertNotIn('class="card-alert"', content.html)
+        self.assertNotIn('class="soft-red bar-red"', content.html)
+        self.assertIn('class="soft-slate bar-slate"', content.html)
 
     def test_task_title_links_to_notion_and_is_escaped(self):
         self.assertIn('href="https://www.notion.so/p1"', self.html)
@@ -159,7 +163,7 @@ class TestHtml(unittest.TestCase):
 
     def test_task_without_area_has_no_tag(self):
         content = self.adapter.build_digest([t("Sin area", "2026-11-16")], TODAY, 3)
-        self.assertNotIn("border-radius:9px", content.html)
+        self.assertNotIn('class="tag-', content.html)
 
     def test_notes_links_escape_and_line_breaks(self):
         self.assertIn('href="https://example.com/a?b=1&amp;c=2"', self.html)
@@ -169,7 +173,8 @@ class TestHtml(unittest.TestCase):
 
     def test_footer(self):
         self.assertIn("Reprogramadas hoy (1)", self.html)
-        self.assertIn(">Pagar Vanti</a></strong>: del 21 nov al 21 dic", self.html)
+        self.assertIn(">Pagar Vanti</a></strong>: ", self.html)
+        self.assertIn(">del 21 nov al 21 dic</span>", self.html)
         # The rescheduled box comes after the task sections.
         self.assertGreater(
             self.html.index("Reprogramadas hoy"), self.html.index("Próximos días")
@@ -187,11 +192,35 @@ class TestHtml(unittest.TestCase):
         content = self.adapter.build_digest(
             [], TODAY, 3, rescheduled=[Rescheduled("Pagar TC", date(2026, 12, 1))]
         )
-        self.assertIn("<strong>Pagar TC</strong>: al 1 dic", content.html)
+        self.assertIn("<strong>Pagar TC</strong>: ", content.html)
+        self.assertIn(">al 1 dic</span>", content.html)
 
     def test_no_footer_link_without_url(self):
         content = EmailAdapter(TZ).build_digest([], TODAY, 3)
         self.assertNotIn("Abrir Tareas en Notion", content.html)
+
+    def test_header_greeting(self):
+        self.assertIn(">NOV</div>", self.html)
+        self.assertIn(">16</div>", self.html)
+        self.assertIn("Buenos días", self.html)
+        self.assertIn(
+            "Hoy tienes 1 tarea, 1 vencida por cerrar y 1 en los próximos días.",
+            self.html,
+        )
+
+    def test_greeting_variants(self):
+        def line(tasks):
+            return self.adapter.greeting_line(self.adapter.group_tasks(tasks, TODAY, 3))
+
+        self.assertEqual(line([]), "No tienes nada pendiente. Disfruta el día.")
+        self.assertEqual(line([t("a", "2026-11-16")]), "Hoy tienes 1 tarea.")
+        self.assertEqual(
+            line([t("a", "2026-11-15"), t("b", "2026-11-14")]),
+            "Hoy no tienes tareas nuevas y 2 vencidas por cerrar.",
+        )
+
+    def test_warning_box(self):
+        self.assertIn("<strong>Atención</strong>", self.html)
 
     def test_unknown_area_uses_default_style(self):
         content = self.adapter.build_digest(

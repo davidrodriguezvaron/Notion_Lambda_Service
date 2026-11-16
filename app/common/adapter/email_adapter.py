@@ -18,6 +18,7 @@ from app.common.utils.dates import (
     TaskDate,
     format_day_month,
     format_long_date,
+    MONTHS_SHORT,
     parse_notion_date,
     relative_label,
 )
@@ -35,12 +36,26 @@ AREA_STYLES: Dict[str, tuple] = {
 }
 DEFAULT_AREA_STYLE = ("#f3f4f6", "#374151", "#2a2f35", "#d1d5db")
 
-# Section key -> (title, rail color, rail class, title color, title class)
-SECTION_STYLES = {
-    "overdue": ("Vencidas", "#f2a7a7", "rail-red", "#b42318", "txt-alert"),
-    "today": ("Hoy", "#2f6feb", "rail-blue", "#1d4ed8", "txt-blue"),
-    "upcoming": ("Próximos días", "#d1d5db", "rail-gray", "#4b5563", "txt-muted"),
+# Color tones: (accent, soft background, text on soft background).
+# Each tone has matching dark mode classes in email_template.html.
+TONES = {
+    "red": ("#ef4444", "#fef2f2", "#b91c1c"),
+    "blue": ("#3b82f6", "#eff6ff", "#1d4ed8"),
+    "slate": ("#cbd5e1", "#f1f5f9", "#475569"),
+    "green": ("#22c55e", "#f0fdf4", "#15803d"),
 }
+
+# Section key -> (title, tone)
+SECTION_STYLES = {
+    "overdue": ("Vencidas", "red"),
+    "today": ("Hoy", "blue"),
+    "upcoming": ("Próximos días", "slate"),
+}
+
+INK = "#0f172a"
+MUTED = "#64748b"
+FAINT = "#94a3b8"
+LINE = "#edf0f4"
 
 URL_PATTERN = re.compile(r"(https?://[^\s<>\"']+|www\.[^\s<>\"']+)")
 TRAILING_PUNCTUATION = ".,;:!?)]}"
@@ -190,14 +205,15 @@ class EmailAdapter:
         else:
             body = self._empty_html()
             preheader = "Nada pendiente hoy. Disfruta el día."
+        body += self._rescheduled_html(rescheduled) + self._warnings_html(warnings)
 
         replacements = {
             "{{subject}}": html.escape(self.subject(sections)),
             "{{preheader}}": html.escape(preheader),
-            "{{date_label}}": html.escape(format_long_date(today)),
+            "{{header}}": self._header_html(sections, today),
             "{{counters}}": self._counters_html(sections),
-            "{{sections}}": body + self._rescheduled_html(rescheduled),
-            "{{footer}}": self._footer_html(warnings),
+            "{{sections}}": body,
+            "{{footer}}": self._footer_html(),
             "{{dark_area_css}}": self._dark_area_css(),
         }
         result = self._load_template()
@@ -228,97 +244,176 @@ class EmailAdapter:
         )
         return "tag-" + re.sub(r"[^a-z0-9]+", "-", ascii_name).strip("-")
 
+    @staticmethod
+    def _pill(text: str, tone: str) -> str:
+        _, soft, fg = TONES[tone]
+        return (
+            f'<span class="soft-{tone} fg-{tone}" style="display:inline-block;'
+            f"background-color:{soft};color:{fg};font-size:12px;line-height:18px;"
+            f'font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap;">'
+            f"{html.escape(text)}</span>"
+        )
+
+    # ----------------------------------------------------------------- header
+
+    @staticmethod
+    def greeting_line(sections: Sections) -> str:
+        """One friendly sentence that sums up the day."""
+        if not sections.total:
+            return "No tienes nada pendiente. Disfruta el día."
+        today_count = len(sections.today)
+        first = (
+            f"Hoy tienes {_plural(today_count, 'tarea', 'tareas')}"
+            if today_count
+            else "Hoy no tienes tareas nuevas"
+        )
+        extra = []
+        if sections.overdue:
+            extra.append(
+                _plural(len(sections.overdue), "vencida", "vencidas") + " por cerrar"
+            )
+        if sections.upcoming:
+            extra.append(f"{len(sections.upcoming)} en los próximos días")
+        if not extra:
+            return f"{first}."
+        if len(extra) == 1:
+            return f"{first} y {extra[0]}."
+        return f"{first}, {extra[0]} y {extra[1]}."
+
+    def _header_html(self, sections: Sections, today: date) -> str:
+        month = MONTHS_SHORT[today.month - 1].upper()
+        return (
+            '<tr><td class="px" style="padding:30px 32px 6px 32px;">'
+            '<table role="presentation" cellpadding="0" cellspacing="0" border="0">'
+            '<tr><td valign="top" width="58" style="width:58px;">'
+            '<table role="presentation" class="tile" width="58" cellpadding="0" '
+            'cellspacing="0" border="0" style="width:58px;background-color:#0f172a;'
+            'border-radius:14px;"><tr><td align="center" style="padding:8px 0 9px 0;">'
+            '<div class="tile-month" style="font-size:11px;line-height:13px;'
+            f'font-weight:700;letter-spacing:0.12em;color:#94a3b8;">{month}</div>'
+            '<div class="tile-day" style="font-size:26px;line-height:30px;'
+            f'font-weight:800;color:#ffffff;">{today.day}</div>'
+            "</td></tr></table></td>"
+            '<td valign="middle" style="padding-left:16px;">'
+            f'<div class="txt-muted" style="font-size:13px;line-height:18px;color:{MUTED};'
+            'font-weight:600;">Buenos días</div>'
+            f'<div class="txt h1" style="font-size:23px;line-height:29px;color:{INK};'
+            f'font-weight:800;letter-spacing:-0.01em;">{html.escape(format_long_date(today))}'
+            "</div></td></tr></table>"
+            f'<div class="txt-muted" style="font-size:15px;line-height:22px;color:{MUTED};'
+            f'margin-top:16px;">{html.escape(self.greeting_line(sections))}</div>'
+            "</td></tr>"
+        )
+
     def _counters_html(self, sections: Sections) -> str:
         if not sections.total:
             return ""
         cards = [
-            ("Vencidas", len(sections.overdue), bool(sections.overdue)),
-            ("Hoy", len(sections.today), False),
-            ("Próximas", len(sections.upcoming), False),
+            ("Vencidas", len(sections.overdue), "red" if sections.overdue else "slate"),
+            ("Hoy", len(sections.today), "blue"),
+            ("Próximas", len(sections.upcoming), "slate"),
         ]
         cells = []
-        for index, (label, count, alert) in enumerate(cards):
-            bg, fg, card_cls, txt_cls = (
-                ("#fdecec", "#b42318", "card-alert", "txt-alert")
-                if alert
-                else ("#f3f4f6", "#111827", "card-neutral", "txt")
-            )
-            label_color = "#b42318" if alert else "#6b7280"
-            label_cls = "txt-alert" if alert else "txt-muted"
+        for index, (label, count, tone) in enumerate(cards):
+            accent, soft, fg = TONES[tone]
+            number_color = fg if tone != "slate" else INK
+            number_cls = f"fg-{tone}" if tone != "slate" else "txt"
             gap = (
                 ""
                 if index == 0
-                else '<td width="8" style="width:8px;font-size:0;">&nbsp;</td>'
+                else '<td width="10" style="width:10px;font-size:0;">&nbsp;</td>'
             )
             cells.append(
-                f'{gap}<td class="{card_cls}" width="33%" valign="top" '
-                f'style="background-color:{bg};border-radius:8px;padding:10px 12px;">'
-                f'<div class="{txt_cls} count" style="font-size:24px;line-height:28px;'
-                f'font-weight:700;color:{fg};">{count}</div>'
-                f'<div class="{label_cls}" style="font-size:12px;line-height:16px;'
-                f'color:{label_color};margin-top:2px;">{label}</div></td>'
+                f'{gap}<td class="soft-{tone} bar-{tone}" width="33%" valign="top" '
+                f'style="background-color:{soft};border-top:3px solid {accent};'
+                'border-radius:12px;padding:12px 14px 13px 14px;">'
+                f'<div class="{number_cls} count" style="font-size:28px;line-height:32px;'
+                f'font-weight:800;color:{number_color};">{count}</div>'
+                f'<div class="txt-muted" style="font-size:12px;line-height:16px;'
+                f'font-weight:600;color:{MUTED};margin-top:2px;">{label}</div></td>'
             )
         return (
-            '<tr><td class="px" style="padding:16px 28px 4px 28px;">'
+            '<tr><td class="px" style="padding:18px 32px 4px 32px;">'
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
             f'border="0"><tr>{"".join(cells)}</tr></table></td></tr>'
         )
 
+    # --------------------------------------------------------------- sections
+
     def _section_html(self, key: str, items: List[DigestTask], today: date) -> str:
-        title, rail, rail_cls, title_color, title_cls = SECTION_STYLES[key]
-        rows = []
-        for index, task in enumerate(items):
-            last = index == len(items) - 1
-            rows.append(self._task_html(task, today, key, last))
+        title, tone = SECTION_STYLES[key]
+        accent, soft, fg = TONES[tone]
+        rows = "".join(
+            self._task_html(task, today, key, index == len(items) - 1)
+            for index, task in enumerate(items)
+        )
+        dot_color = fg if tone != "slate" else MUTED
         return (
-            '<tr><td class="px" style="padding:20px 28px 0 28px;">'
-            f'<div class="{title_cls}" style="font-size:13px;line-height:18px;'
-            f'font-weight:700;color:{title_color};margin:0 0 8px 0;font-family:{FONT};">'
-            f'{title} <span style="font-weight:400;">({len(items)})</span></div>'
+            '<tr><td class="px" style="padding:26px 32px 0 32px;">'
+            '<table role="presentation" cellpadding="0" cellspacing="0" border="0" '
+            'style="margin-bottom:10px;"><tr>'
+            f'<td valign="middle" style="padding-right:8px;font-size:0;line-height:0;">'
+            f'<span class="dot-{tone}" style="display:inline-block;width:8px;height:8px;'
+            f'border-radius:4px;background-color:{dot_color};"></span></td>'
+            f'<td valign="middle" class="fg-{tone}" style="font-size:12px;line-height:16px;'
+            f"font-weight:800;letter-spacing:0.09em;text-transform:uppercase;"
+            f'color:{fg};padding-right:8px;">{title}</td>'
+            f'<td valign="middle">{self._pill(str(len(items)), tone)}</td>'
+            "</tr></table>"
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-            f'border="0" class="{rail_cls}" style="border-left:3px solid {rail};">'
-            f'{"".join(rows)}</table></td></tr>'
+            f'border="0" class="box rail-{tone}" style="background-color:#ffffff;'
+            f"border:1px solid {LINE};border-left:4px solid {accent};"
+            f'border-radius:12px;">{rows}</table></td></tr>'
         )
 
     def _task_html(self, task: DigestTask, today: date, key: str, last: bool) -> str:
         title = html.escape(task.titulo)
-        if task.url:
-            title = (
-                f'<a href="{_attr(task.url)}" class="txt" '
-                'style="color:#111827;text-decoration:none;font-weight:700;">'
-                f"{title}</a>"
-            )
-        when_label = html.escape(self._when_label(task, today))
-        when_color, when_cls = (
-            ("#b42318", "txt-alert") if key == "overdue" else ("#6b7280", "txt-muted")
+        ring = (
+            '<span class="ring" style="display:inline-block;width:14px;height:14px;'
+            'border:2px solid #cbd5e1;border-radius:9px;"></span>'
         )
-        meta = [
-            f'<span class="{when_cls}" style="color:{when_color};">{when_label}</span>'
-        ]
+        if task.url:
+            href = _attr(task.url)
+            title = (
+                f'<a href="{href}" class="txt" style="color:{INK};'
+                f'text-decoration:none;">{title}</a>'
+            )
+            ring = f'<a href="{href}" style="text-decoration:none;">{ring}</a>'
+
+        meta = [self._when_pill(task, today, key)]
         if task.area:
-            meta.insert(0, self._area_tag_html(task.area))
+            meta.append(self._area_tag_html(task.area))
         notes = ""
         if task.notas:
             notes = (
-                '<div class="txt-muted" style="font-size:13px;line-height:19px;'
-                f'color:#6b7280;margin-top:6px;word-break:break-word;">'
+                f'<div class="txt-muted" style="font-size:13px;line-height:20px;'
+                f'color:{MUTED};margin-top:8px;word-break:break-word;">'
                 f"{self._notes_html(task.notas)}</div>"
             )
-        border = "" if last else "border-bottom:1px solid #eef0f2;"
+        border = "" if last else f"border-bottom:1px solid {LINE};"
         return (
-            f'<tr><td class="line" style="padding:10px 0 10px 14px;{border}">'
+            f'<tr><td class="line" style="padding:14px 16px 14px 14px;{border}">'
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            'border="0"><tr>'
+            '<td valign="top" width="26" style="width:26px;padding-top:2px;">'
+            f"{ring}</td>"
+            '<td valign="top">'
             f'<div class="txt" style="font-size:15px;line-height:21px;font-weight:700;'
-            f'color:#111827;">{title}</div>'
-            f'<div style="font-size:12px;line-height:18px;margin-top:3px;">'
-            f'{"&nbsp;&nbsp;".join(meta)}</div>{notes}</td></tr>'
+            f'color:{INK};">{title}</div>'
+            f'<div style="margin-top:6px;line-height:22px;">{"&nbsp;".join(meta)}</div>'
+            f"{notes}</td></tr></table></td></tr>"
         )
+
+    def _when_pill(self, task: DigestTask, today: date, key: str) -> str:
+        tone = {"overdue": "red", "today": "blue", "upcoming": "slate"}[key]
+        return self._pill(self._when_label(task, today), tone)
 
     def _area_tag_html(self, area: str) -> str:
         bg, fg, _, _ = AREA_STYLES.get(area, DEFAULT_AREA_STYLE)
         return (
             f'<span class="{self._area_class(area)}" style="display:inline-block;'
-            f"background-color:{bg};color:{fg};font-size:11px;line-height:16px;"
-            f'font-weight:600;padding:1px 8px;border-radius:9px;">'
+            f"background-color:{bg};color:{fg};font-size:12px;line-height:18px;"
+            f'font-weight:600;padding:2px 9px;border-radius:999px;white-space:nowrap;">'
             f"{html.escape(area)}</span>"
         )
 
@@ -350,38 +445,46 @@ class EmailAdapter:
 
     @staticmethod
     def _empty_html() -> str:
+        accent, soft, fg = TONES["green"]
         return (
-            '<tr><td class="px" style="padding:24px 28px 8px 28px;">'
-            '<div class="txt" style="font-size:16px;line-height:22px;font-weight:600;'
-            'color:#111827;">Nada pendiente hoy</div>'
-            '<div class="txt-muted" style="font-size:14px;line-height:20px;'
-            'color:#6b7280;margin-top:4px;">No hay tareas vencidas, para hoy ni '
-            "para los próximos días.</div></td></tr>"
+            '<tr><td class="px" style="padding:22px 32px 4px 32px;">'
+            '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
+            f'border="0"><tr><td class="soft-green" style="background-color:{soft};'
+            f'border:1px solid #bbf7d0;border-radius:14px;padding:22px 20px;">'
+            f'<div class="fg-green" style="font-size:17px;line-height:24px;font-weight:800;'
+            f'color:{fg};">Nada pendiente hoy</div>'
+            f'<div class="txt-muted" style="font-size:14px;line-height:21px;color:{MUTED};'
+            'margin-top:4px;">No hay tareas vencidas, para hoy ni para los próximos '
+            "días.</div></td></tr></table></td></tr>"
         )
 
     def _rescheduled_html(self, rescheduled: Sequence[Any]) -> str:
-        """Small box at the end listing recurring tasks moved in this run."""
+        """Green box at the end listing recurring tasks moved in this run."""
         if not rescheduled:
             return ""
+        _, soft, fg = TONES["green"]
         lines = []
         for item in rescheduled:
             title = html.escape(item.titulo)
             if item.url:
                 title = (
                     f'<a href="{_attr(item.url)}" class="txt" '
-                    f'style="color:#111827;text-decoration:none;">{title}</a>'
+                    f'style="color:{INK};text-decoration:none;">{title}</a>'
                 )
             lines.append(
-                f'<div style="margin-top:4px;"><strong>{title}</strong>: '
-                f"{html.escape(self._moved_label(item))}</div>"
+                f'<div class="txt" style="margin-top:6px;color:{INK};">'
+                f"<strong>{title}</strong>: "
+                f'<span class="txt-muted" style="color:{MUTED};">'
+                f"{html.escape(self._moved_label(item))}</span></div>"
             )
         return (
-            '<tr><td class="px" style="padding:24px 28px 0 28px;">'
+            '<tr><td class="px" style="padding:26px 32px 0 32px;">'
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-            'border="0"><tr><td class="card-ok txt" style="background-color:#ecfdf3;'
-            "border-radius:8px;padding:12px 14px;font-size:13px;line-height:19px;"
-            'color:#111827;">'
-            '<div class="txt-ok" style="font-size:12px;font-weight:700;color:#067647;">'
+            f'border="0"><tr><td class="soft-green" style="background-color:{soft};'
+            "border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px;"
+            'font-size:14px;line-height:20px;">'
+            f'<div class="fg-green" style="font-size:12px;line-height:16px;font-weight:800;'
+            f'letter-spacing:0.09em;text-transform:uppercase;color:{fg};">'
             f"Reprogramadas hoy ({len(rescheduled)})</div>"
             f'{"".join(lines)}</td></tr></table></td></tr>'
         )
@@ -393,26 +496,41 @@ class EmailAdapter:
         old = getattr(item, "fecha_anterior", None)
         return f"del {format_day_month(old)} al {new}" if old else f"al {new}"
 
-    def _footer_html(self, warnings: Sequence[str]) -> str:
-        blocks = []
-        for warning in warnings:
-            blocks.append(
-                '<div class="txt-alert" style="color:#b42318;margin-bottom:8px;">'
-                f"{html.escape(warning)}</div>"
-            )
-        if self.notion_tasks_url:
-            blocks.append(
-                f'<a href="{_attr(self.notion_tasks_url)}" class="link" '
-                'style="color:#2563eb;text-decoration:none;font-weight:600;">'
-                "Abrir Tareas en Notion</a>"
-            )
-        content = "".join(blocks)
+    @staticmethod
+    def _warnings_html(warnings: Sequence[str]) -> str:
+        if not warnings:
+            return ""
+        _, soft, fg = TONES["red"]
+        items = "".join(
+            f'<div style="margin-top:4px;">{html.escape(w)}</div>' for w in warnings
+        )
         return (
-            '<tr><td class="px" style="padding:24px 28px 28px 28px;">'
+            '<tr><td class="px" style="padding:18px 32px 0 32px;">'
             '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" '
-            'border="0"><tr><td class="line txt-muted" style="border-top:1px solid '
-            "#eef0f2;padding-top:16px;font-size:12px;line-height:18px;"
-            f'color:#6b7280;">{content}</td></tr></table></td></tr>'
+            f'border="0"><tr><td class="soft-red fg-red" style="background-color:{soft};'
+            f"border:1px solid #fecaca;border-radius:12px;padding:12px 16px;"
+            f'font-size:13px;line-height:19px;color:{fg};">'
+            f"<strong>Atención</strong>{items}</td></tr></table></td></tr>"
+        )
+
+    def _footer_html(self) -> str:
+        button = ""
+        if self.notion_tasks_url:
+            button = (
+                '<table role="presentation" cellpadding="0" cellspacing="0" border="0">'
+                '<tr><td class="btn" style="background-color:#0f172a;border-radius:10px;">'
+                f'<a href="{_attr(self.notion_tasks_url)}" class="btn-txt" '
+                'style="display:inline-block;padding:12px 20px;font-size:14px;'
+                'line-height:18px;font-weight:700;color:#ffffff;text-decoration:none;">'
+                "Abrir Tareas en Notion &rarr;</a></td></tr></table>"
+            )
+        return (
+            '<tr><td class="px" style="padding:30px 32px 30px 32px;">'
+            f"{button}"
+            f'<div class="line txt-faint" style="border-top:1px solid {LINE};'
+            f"margin-top:{'24px' if button else '0'};padding-top:16px;font-size:12px;"
+            f'line-height:18px;color:{FAINT};">Resumen diario de tu base Tareas en '
+            "Notion. Chulea una tarea para quitarla de aquí.</div></td></tr>"
         )
 
     # ------------------------------------------------------------- plain text

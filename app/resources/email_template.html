@@ -13,42 +13,55 @@
   body { margin: 0 !important; padding: 0 !important; width: 100% !important; }
   a { text-decoration: none; }
   @media screen and (max-width: 480px) {
-    .px { padding-left: 16px !important; padding-right: 16px !important; }
-    .h1 { font-size: 22px !important; }
-    .count { font-size: 22px !important; }
+    .px { padding-left: 18px !important; padding-right: 18px !important; }
+    .h1 { font-size: 20px !important; line-height: 26px !important; }
+    .count { font-size: 24px !important; line-height: 28px !important; }
+    .gutter { padding-left: 0 !important; padding-right: 0 !important; }
+    .card { border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; }
   }
   @media (prefers-color-scheme: dark) {
-    .bg-page { background-color: #0f1113 !important; }
-    .bg-card { background-color: #181b1f !important; }
-    .txt { color: #e7e9ec !important; }
-    .txt-muted { color: #9aa1a9 !important; }
-    .line { border-color: #2a2f35 !important; }
-    .card-neutral { background-color: #22262b !important; }
-    .card-alert { background-color: #3a1d1f !important; }
-    .txt-alert { color: #ff8f8f !important; }
-    .txt-blue { color: #8ab4ff !important; }
-    .rail-red { border-left-color: #a8474a !important; }
-    .rail-blue { border-left-color: #4c7fd9 !important; }
-    .rail-gray { border-left-color: #4a5058 !important; }
-    .link { color: #8ab4ff !important; }
-    .card-ok { background-color: #12261b !important; }
-    .txt-ok { color: #75e0a7 !important; }
+    .bg-page { background-color: #0b0d10 !important; }
+    .card { background-color: #15181d !important; border-color: #262a31 !important; }
+    .txt { color: #e8eaed !important; }
+    .txt-muted { color: #9aa3ae !important; }
+    .txt-faint { color: #6b7380 !important; }
+    .line { border-color: #262a31 !important; }
+    .tile { background-color: #e8eaed !important; }
+    .tile-month { color: #4b5563 !important; }
+    .tile-day { color: #0f172a !important; }
+    .box { background-color: #15181d !important; border-color: #262a31 !important; }
+    .soft-red { background-color: #2a1416 !important; }
+    .soft-blue { background-color: #121f36 !important; }
+    .soft-slate { background-color: #1d2127 !important; }
+    .soft-green { background-color: #0f2418 !important; border-color: #1b4d31 !important; }
+    .fg-red { color: #ff9b9b !important; }
+    .fg-blue { color: #93b8ff !important; }
+    .fg-slate { color: #b6bec8 !important; }
+    .fg-green { color: #7ee2a8 !important; }
+    .rail-red { border-left-color: #b54a4f !important; }
+    .rail-blue { border-left-color: #4b7fe0 !important; }
+    .rail-slate { border-left-color: #4a515b !important; }
+    .bar-red { border-top-color: #b54a4f !important; }
+    .bar-blue { border-top-color: #4b7fe0 !important; }
+    .bar-slate { border-top-color: #4a515b !important; }
+    .dot-red { background-color: #ff9b9b !important; }
+    .dot-blue { background-color: #93b8ff !important; }
+    .dot-slate { background-color: #b6bec8 !important; }
+    .ring { border-color: #4a515b !important; }
+    .btn { background-color: #e8eaed !important; }
+    .btn-txt { color: #0f172a !important; }
+    .link { color: #93b8ff !important; }
 {{dark_area_css}}
   }
 </style>
 </head>
-<body class="bg-page" style="margin:0;padding:0;background-color:#f3f4f6;">
+<body class="bg-page" style="margin:0;padding:0;background-color:#eef0f4;">
 <div style="display:none;font-size:1px;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;mso-hide:all;">{{preheader}}&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;&#8203;&nbsp;</div>
-<table role="presentation" class="bg-page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f3f4f6;">
+<table role="presentation" class="bg-page" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef0f4;">
 <tr>
-<td align="center" style="padding:24px 8px;">
-<table role="presentation" class="bg-card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border-radius:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
-<tr>
-<td class="px" style="padding:28px 28px 8px 28px;">
-<div class="txt-muted" style="font-size:12px;line-height:16px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#6b7280;">Tareas</div>
-<div class="txt h1" style="font-size:24px;line-height:30px;font-weight:700;color:#111827;margin-top:4px;">{{date_label}}</div>
-</td>
-</tr>
+<td class="gutter" align="center" style="padding:28px 12px;">
+<table role="presentation" class="card" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background-color:#ffffff;border:1px solid #e3e6eb;border-radius:18px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+{{header}}
 {{counters}}
 {{sections}}
 {{footer}}
