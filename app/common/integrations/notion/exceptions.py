@@ -26,14 +26,3 @@ class NotionApiError(Exception):
         if self.status_code:
             return f"[{self.status_code}] {self.message}"
         return self.message
-
-
-class NotionDataNotFoundError(NotionApiError):
-    """
-    Exception raised when expected data is not found in Notion.
-
-    Raised when a query returns no results or expected data is missing.
-    """
-
-    def __init__(self, message: str = "No data found in Notion"):
-        super().__init__(message)

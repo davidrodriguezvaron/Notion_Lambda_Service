@@ -28,7 +28,7 @@ class TestSesClient(unittest.TestCase):
         subject = "Test Subject"
         body = "<p>Test Body</p>"
 
-        client.send_email(sender, receiver, subject, body)
+        client.send_email(sender, receiver, subject, body, "Texto plano")
 
         mock_client.send_email.assert_called_once_with(
             Source=sender,
@@ -38,7 +38,7 @@ class TestSesClient(unittest.TestCase):
                 "Body": {
                     "Html": {"Data": body, "Charset": "UTF-8"},
                     "Text": {
-                        "Data": "Your email client does not support HTML.",
+                        "Data": "Texto plano",
                         "Charset": "UTF-8",
                     },
                 },

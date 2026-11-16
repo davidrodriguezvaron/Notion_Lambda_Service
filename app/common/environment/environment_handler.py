@@ -1,5 +1,8 @@
 import os
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from dotenv import load_dotenv
+
+TRUE_VALUES = {"1", "true", "yes", "si", "sí", "on"}
 
 
 class EnvironmentHandler:
@@ -50,7 +53,40 @@ class EnvironmentHandler:
     @property
     def notion_database_filter_properties(self):
         """Returns the Notion database filter properties."""
-        return os.getenv("NOTION_DATABASE_FILTER_PROPERTIES", "Notas,Tarea,Fecha")
+        return os.getenv("NOTION_DATABASE_FILTER_PROPERTIES", "Notas,Tarea,Fecha,Área")
+
+    @property
+    def timezone_name(self):
+        """Returns the IANA time zone used to decide what "today" is."""
+        return os.getenv("TIMEZONE", "America/Bogota").strip() or "America/Bogota"
+
+    @property
+    def timezone(self):
+        """Returns the configured time zone as a ZoneInfo object."""
+        return ZoneInfo(self.timezone_name)
+
+    @property
+    def send_empty_digest(self):
+        """Whether to send a short email when there is nothing pending."""
+        return os.getenv("SEND_EMPTY_DIGEST", "false").strip().lower() in TRUE_VALUES
+
+    @property
+    def upcoming_days(self):
+        """Number of days ahead included in the "Próximos días" section."""
+        raw = os.getenv("UPCOMING_DAYS", "3").strip()
+        try:
+            return max(0, int(raw))
+        except ValueError:
+            return 3
+
+    @property
+    def notion_tasks_url(self):
+        """Link to the Tareas database shown in the email footer."""
+        url = os.getenv("NOTION_TASKS_URL")
+        if url:
+            return url.strip()
+        database_id = (self.notion_database_id or "").replace("-", "")
+        return f"https://www.notion.so/{database_id}" if database_id else ""
 
     @property
     def ses_sender_and_receiver(self):
@@ -83,6 +119,11 @@ class EnvironmentHandler:
             raise ValueError(
                 f"Missing required environment variables: {', '.join(missing_vars)}"
             )
+
+        try:
+            self.timezone
+        except (ZoneInfoNotFoundError, ValueError) as e:
+            raise ValueError(f"Invalid TIMEZONE '{self.timezone_name}': {e}") from e
 
 
 environment_handler = EnvironmentHandler()
